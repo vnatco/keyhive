@@ -1,0 +1,59 @@
+{
+  "name": "keyhive",
+  "version": "1.3.0",
+  "description": "Zero-knowledge password manager with client-side encryption",
+  "main": "main.js",
+  "author": "KeyHive <contact@keyhive.app>",
+  "homepage": "https://keyhive.app",
+  "license": "AGPL-3.0-or-later",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "app.keyhive.desktop",
+    "productName": "KeyHive",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "www/**/*",
+      "icons/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "KeyHive",
+      "installerIcon": "icons/icon.ico",
+      "uninstallerIcon": "icons/icon.ico",
+      "include": "installer/uninstaller.nsh"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icons/icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "icons",
+      "category": "Utility"
+    }
+  },
+  "devDependencies": {
+    "electron": "^40.6.0",
+    "electron-builder": "^26.0.0"
+  }
+}

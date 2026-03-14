@@ -1,0 +1,18 @@
+{
+  "appId": "app.keyhive.mobile",
+  "appName": "KeyHive",
+  "webDir": "www",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https"
+  },
+  "ios": {
+    "scheme": "KeyHive",
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "BiometricAuth": {
+      "androidTitle": "Unlock KeyHive"
+    }
+  }
+}
