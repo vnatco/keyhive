@@ -169,6 +169,46 @@ const Utils = {
      * @param {Object} data - Item data
      * @returns {string} Item title
      */
+    /**
+     * Parse a lightweight markdown subset into safe HTML.
+     * Supports: headers (##), bold (**), italic (*), links [text](url),
+     * horizontal rules (---), and newlines → <br>.
+     * All text is escaped first to prevent XSS.
+     * @param {string} str - Markdown string
+     * @returns {string} - Safe HTML
+     */
+    parseLightMarkdown(str) {
+        if (!str) return '';
+        // Escape all HTML first
+        let html = this.escapeHtml(str);
+
+        // Headers (## at start of line) — must come before bold
+        html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+        html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+
+        // Horizontal rule (--- on its own line)
+        html = html.replace(/^---$/gm, '<hr>');
+
+        // Bold (**text**)
+        html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+        // Italic (*text*) — but not inside bold
+        html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
+
+        // Links [text](url) — sanitize URL
+        html = html.replace(/\[(.+?)\]\((.+?)\)/g, (_, text, url) => {
+            const safeUrl = this.sanitizeUrl(url);
+            if (!safeUrl) return text;
+            return `<a href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        });
+
+        // Newlines → <br>
+        html = html.replace(/\n/g, '<br>');
+
+        return html;
+    },
+
     getItemTitle(type, data) {
         switch (type) {
             case 'password':

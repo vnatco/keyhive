@@ -379,7 +379,7 @@ const ImportRenderer = {
                 if (!isCleanMode) {
                     if (isDeleted) html += `<span class="tree-badge tree-badge-deleted">Deleted</span>`;
                     html += `<span class="tree-badge tree-badge-${status}">${ImportRenderer.statusText(status)}</span>`;
-                    html += `<span class="tree-id">${folder.id}</span>`;
+                    html += `<span class="tree-id">${Utils.escapeHtml(String(folder.id))}</span>`;
                 }
                 html += '</div>';
 
@@ -401,7 +401,7 @@ const ImportRenderer = {
                     if (!isCleanMode) {
                         if (isDeleted) html += `<span class="tree-badge tree-badge-deleted">Deleted</span>`;
                         html += `<span class="tree-badge tree-badge-${iStatus}">${ImportRenderer.statusText(iStatus)}</span>`;
-                        html += `<span class="tree-id">${item.id}</span>`;
+                        html += `<span class="tree-id">${Utils.escapeHtml(String(item.id))}</span>`;
                     }
                     html += '</div>';
                 }
@@ -466,7 +466,7 @@ const ImportRenderer = {
                 html += `<span class="tree-name">${Utils.escapeHtml(itemName)}</span>`;
                 if (!isCleanMode) {
                     html += `<span class="tree-badge tree-badge-${iStatus}">${ImportRenderer.statusText(iStatus)}</span>`;
-                    html += `<span class="tree-id">${item.id}</span>`;
+                    html += `<span class="tree-id">${Utils.escapeHtml(String(item.id))}</span>`;
                 }
                 html += '</div>';
             }
@@ -514,7 +514,7 @@ const ImportRenderer = {
                 }
                 html += `</span>`;
                 if (!isCleanMode) {
-                    html += `<span class="tree-id">${vault.id}</span>`;
+                    html += `<span class="tree-id">${Utils.escapeHtml(String(vault.id))}</span>`;
                 }
                 html += '</div>';
 
@@ -537,7 +537,7 @@ const ImportRenderer = {
                     if (!isCleanMode) {
                         if (isDeleted) html += `<span class="tree-badge tree-badge-deleted">Deleted</span>`;
                         html += `<span class="tree-badge tree-badge-${iStatus}">${ImportRenderer.statusText(iStatus)}</span>`;
-                        html += `<span class="tree-id">${item.id}</span>`;
+                        html += `<span class="tree-id">${Utils.escapeHtml(String(item.id))}</span>`;
                     }
                     html += '</div>';
                 }
@@ -578,7 +578,7 @@ const ImportRenderer = {
                     html += `<span class="tree-orphaned-item-subtitle">${Utils.escapeHtml(subtitle)}</span>`;
                 }
                 html += `</div>`;
-                html += `<span class="tree-orphaned-item-ref" title="Missing folder ID: ${item.folder_id}">folder not found</span>`;
+                html += `<span class="tree-orphaned-item-ref" title="Missing folder ID: ${Utils.escapeHtml(String(item.folder_id))}">folder not found</span>`;
                 html += '</div>';
             }
             html += '</div>';

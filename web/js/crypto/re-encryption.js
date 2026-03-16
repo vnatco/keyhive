@@ -115,6 +115,7 @@ const ReEncryption = {
                 const currentAuth = await LocalDB.getOfflineAuth();
                 await LocalDB.saveReencryptionBackup({
                     status: 'in_progress',
+                    mode: mode,
                     old_salt: currentAuth?.salt,
                     old_kdf: currentAuth?.kdf || oldKdf,
                     new_salt: newSalt,
@@ -351,16 +352,9 @@ const ReEncryption = {
             return reEnc ? { ...folder, encrypted_name: reEnc.encrypted_name, encrypted_icon: reEnc.encrypted_icon } : folder;
         });
 
-        // Save merged data to IndexedDB
-        if (mergedItems.length > 0) {
-            await LocalDB.saveItems(mergedItems);
-        }
-        if (mergedFolders.length > 0) {
-            await LocalDB.saveFolders(mergedFolders);
-        }
-
-        // Update auth (salt/kdf)
-        await LocalDB.saveOfflineAuth(newSalt, newKdf);
+        // CRITICAL: Write everything in a single atomic transaction.
+        // If the app crashes mid-write, IndexedDB rolls back entirely — no mixed state.
+        await LocalDB.saveReencryptionAtomically(mergedItems, mergedFolders, newSalt, newKdf);
     },
 
     /**
@@ -391,18 +385,39 @@ const ReEncryption = {
 
     /**
      * Recover from sync failure (cloud mode)
-     * First tries to restore old key from server, then falls back to delete-DB + logout
+     * IndexedDB has new-encrypted data but server still has old-encrypted data.
+     * Strategy: restore old key, re-sync IndexedDB FROM server to get back to consistent state.
      */
     async _recoverFromSyncFailure(oldPassword) {
         try {
-            // First: try to restore old key from server (server still has old salt)
+            // Step 1: Restore old key from server (server still has old salt)
             if (oldPassword) {
                 try {
                     const saltResponse = await ApiClient.getSalt();
                     if (saltResponse.success && saltResponse.data?.salt) {
                         await CryptoAPI.deriveKey(oldPassword, saltResponse.data.salt, saltResponse.data.kdf);
                         console.log('[ReEncryption] Restored old key from server');
-                        // Old key restored - caller will show error, user can retry
+
+                        // Step 2: Revert IndexedDB salt/kdf back to old values
+                        if (typeof LocalDB !== 'undefined') {
+                            await LocalDB.saveOfflineAuth(saltResponse.data.salt, saltResponse.data.kdf);
+                            // Clear the backup so next unlock doesn't enter recovery mode
+                            await LocalDB.clearReencryptionBackup();
+                            console.log('[ReEncryption] Reverted IndexedDB auth to old salt');
+                        }
+
+                        // Step 3: Force re-sync from server to overwrite stale IndexedDB data
+                        // This replaces the re-encrypted blobs with the server's old-encrypted blobs
+                        if (typeof Vault !== 'undefined') {
+                            try {
+                                await Vault._syncFromServer();
+                                console.log('[ReEncryption] Re-synced IndexedDB from server');
+                            } catch (syncErr) {
+                                console.warn('[ReEncryption] Server re-sync failed, IndexedDB will be stale:', syncErr);
+                                // Not critical - next normal sync will fix it
+                            }
+                        }
+
                         return;
                     }
                 } catch (restoreError) {

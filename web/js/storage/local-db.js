@@ -824,6 +824,52 @@ const LocalDB = {
         return backup?.status === 'in_progress';
     },
 
+    /**
+     * Atomically save re-encrypted data + new salt/kdf in a single IndexedDB transaction.
+     * If the app crashes mid-write, everything rolls back — no partial state.
+     * @param {Array} mergedItems - Full item records with re-encrypted encrypted_data
+     * @param {Array} mergedFolders - Full folder records with re-encrypted encrypted_name/icon
+     * @param {string} newSalt - New salt for key derivation
+     * @param {Object} newKdf - New KDF parameters
+     * @returns {Promise<void>}
+     */
+    async saveReencryptionAtomically(mergedItems, mergedFolders, newSalt, newKdf) {
+        await this.ensureInit();
+        const now = DateUtils.now();
+
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(
+                [this.STORES.ITEMS, this.STORES.FOLDERS, this.STORES.USER_DATA],
+                'readwrite'
+            );
+
+            tx.oncomplete = () => {
+                console.log('[LocalDB] Atomic re-encryption save complete');
+                resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(new Error('Atomic re-encryption save aborted'));
+
+            const itemStore = tx.objectStore(this.STORES.ITEMS);
+            const folderStore = tx.objectStore(this.STORES.FOLDERS);
+            const userDataStore = tx.objectStore(this.STORES.USER_DATA);
+
+            // Write all items
+            for (const item of mergedItems) {
+                itemStore.put({ ...item, _localUpdatedAt: now });
+            }
+
+            // Write all folders
+            for (const folder of mergedFolders) {
+                folderStore.put({ ...folder, _localUpdatedAt: now });
+            }
+
+            // Write new salt and KDF
+            userDataStore.put({ key: 'offline_salt', value: newSalt });
+            userDataStore.put({ key: 'offline_kdf', value: newKdf });
+        });
+    },
+
     // ===========================================
     // User Profile (Name, Email, etc.)
     // ===========================================

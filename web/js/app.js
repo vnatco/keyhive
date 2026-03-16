@@ -223,6 +223,9 @@ const App = {
             Connectivity.addListener((status) => this.handleConnectivityChange(status));
         }
 
+        // Listen for client notices from health checks
+        window.addEventListener('client-notice', (e) => ClientNotice.handle(e.detail));
+
         // Initialize biometric support (no-op on non-Capacitor platforms)
         if (typeof Biometric !== 'undefined') {
             Biometric.init().catch(e => console.warn('[App] Biometric init failed:', e));
@@ -960,6 +963,15 @@ const App = {
 
             console.warn('[App] Detected incomplete re-encryption!', backup);
 
+            // Determine which password the user should try
+            const currentAuth = await LocalDB.getOfflineAuth();
+            const usesNewKey = currentAuth?.salt === backup.new_salt;
+            const passwordHint = backup.mode === 'password_change'
+                ? (usesNewKey
+                    ? 'Please unlock with your <strong>new</strong> password.'
+                    : 'Please unlock with your <strong>old</strong> password.')
+                : 'Please unlock with your password.';
+
             // Show warning popup
             return new Promise(resolve => {
                 Popup.open({
@@ -972,14 +984,13 @@ const App = {
                                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
                             </svg>
                             <div>
-                                <strong>Previous re-encryption was interrupted</strong><br>
-                                A password or encryption change did not complete successfully.
-                                Your data may be encrypted with either your old or new password.
+                                <strong>Previous encryption change was interrupted</strong><br>
+                                Your data is safe. The system will automatically recover.
                             </div>
                         </div>
                         <p style="margin-top: var(--space-4);">
-                            Please try unlocking with your password. If one doesn't work, try the other.
-                            Once unlocked successfully, the recovery data will be cleared.
+                            ${passwordHint}
+                            Recovery will complete automatically after unlock.
                         </p>
                     `,
                     buttons: [
@@ -1441,6 +1452,7 @@ const App = {
      */
     async handleUnlock(data) {
         let salt, kdf;
+        let recoveryMode = false;  // True when recovering from interrupted re-encryption
 
         // Check if we're in local mode or offline
         const isLocalMode = localStorage.getItem('keyhive_mode') === 'local';
@@ -1460,16 +1472,26 @@ const App = {
             }
 
             await LocalDB.init();
-            const offlineAuth = await LocalDB.getOfflineAuth();
 
-            if (!offlineAuth) {
-                throw new Error(isLocalMode
-                    ? 'Local vault not set up. Please set up your vault key.'
-                    : 'No offline data available. Please connect to internet first.');
+            // Check for incomplete re-encryption and determine correct salt
+            const recoveryResult = await this._getRecoverySaltIfNeeded();
+            if (recoveryResult) {
+                salt = recoveryResult.salt;
+                kdf = recoveryResult.kdf;
+                recoveryMode = true;
+                console.log('[App] Recovery mode: using', recoveryResult.source, 'salt');
+            } else {
+                const offlineAuth = await LocalDB.getOfflineAuth();
+
+                if (!offlineAuth) {
+                    throw new Error(isLocalMode
+                        ? 'Local vault not set up. Please set up your vault key.'
+                        : 'No offline data available. Please connect to internet first.');
+                }
+
+                salt = offlineAuth.salt;
+                kdf = offlineAuth.kdf;
             }
-
-            salt = offlineAuth.salt;
-            kdf = offlineAuth.kdf;
 
             // Load user name from IndexedDB
             const userName = await LocalDB.getUserName();
@@ -1501,7 +1523,17 @@ const App = {
                     LocalDB.setDatabase('cloud', this.state.user.id);
                     LocalDB.saveMode('cloud', this.state.user.id);
                     await LocalDB.init();
-                    await LocalDB.saveOfflineAuth(salt, kdf);
+
+                    // Check for incomplete re-encryption recovery
+                    const recoveryResult = await this._getRecoverySaltIfNeeded();
+                    if (recoveryResult) {
+                        salt = recoveryResult.salt;
+                        kdf = recoveryResult.kdf;
+                        recoveryMode = true;
+                        console.log('[App] Recovery mode (online): using', recoveryResult.source, 'salt');
+                    } else {
+                        await LocalDB.saveOfflineAuth(salt, kdf);
+                    }
 
                     // Save user name for offline display
                     if (this.state.user.name) {
@@ -1535,11 +1567,18 @@ const App = {
                 this.startPeriodicSync();
             }
 
-            // Clear re-encryption backup if exists (unlock succeeded = data is accessible)
-            if (typeof LocalDB !== 'undefined') {
-                LocalDB.clearReencryptionBackup().catch(e =>
-                    console.warn('[App] Failed to clear re-encryption backup:', e)
+            // Handle re-encryption recovery completion
+            if (recoveryMode) {
+                this._completeReencryptionRecovery(isOffline).catch(e =>
+                    console.error('[App] Re-encryption recovery failed:', e)
                 );
+            } else {
+                // Normal unlock: clear any stale backup
+                if (typeof LocalDB !== 'undefined') {
+                    LocalDB.clearReencryptionBackup().catch(e =>
+                        console.warn('[App] Failed to clear re-encryption backup:', e)
+                    );
+                }
             }
 
             // Auto-cleanup old trash items (deleted > 30 days ago)
@@ -1563,6 +1602,109 @@ const App = {
             // Clear the derived key
             await CryptoAPI.lock();
             throw new Error('Invalid vault key');
+        }
+    },
+
+    /**
+     * Determine the correct salt/kdf when an incomplete re-encryption backup exists.
+     * Compares IndexedDB's current salt with the backup to determine which key to use.
+     * @returns {Promise<{salt, kdf, source: string}|null>} - null if no recovery needed
+     */
+    async _getRecoverySaltIfNeeded() {
+        if (typeof LocalDB === 'undefined') return null;
+
+        try {
+            const backup = await LocalDB.getReencryptionBackup();
+            if (!backup || backup.status !== 'in_progress') return null;
+
+            console.log('[App] Incomplete re-encryption detected, determining correct salt...');
+
+            const currentAuth = await LocalDB.getOfflineAuth();
+            if (!currentAuth) return null;
+
+            // Compare IndexedDB's current salt with the backup's new_salt
+            // If they match, step 7 (atomic IndexedDB write) completed → use new credentials
+            // If they don't match, step 7 didn't complete → use old credentials
+            if (currentAuth.salt === backup.new_salt) {
+                console.log('[App] IndexedDB has new salt → step 7 completed, using new credentials');
+                return { salt: backup.new_salt, kdf: backup.new_kdf, source: 'new' };
+            } else {
+                console.log('[App] IndexedDB has old salt → step 7 did not complete, using old credentials');
+                return { salt: backup.old_salt, kdf: backup.old_kdf, source: 'old' };
+            }
+        } catch (e) {
+            console.error('[App] Recovery salt check failed:', e);
+            return null;
+        }
+    },
+
+    /**
+     * Complete interrupted re-encryption after successful recovery unlock.
+     * - If IndexedDB has new data but server wasn't synced: push to server
+     * - If IndexedDB has old data (step 7 didn't complete): just clear the backup
+     * @param {boolean} isOffline
+     */
+    async _completeReencryptionRecovery(isOffline) {
+        if (typeof LocalDB === 'undefined') return;
+
+        try {
+            const backup = await LocalDB.getReencryptionBackup();
+            if (!backup || backup.status !== 'in_progress') return;
+
+            const currentAuth = await LocalDB.getOfflineAuth();
+            const stepSevenCompleted = currentAuth?.salt === backup.new_salt;
+
+            if (stepSevenCompleted && !isOffline && backup.mode !== 'local') {
+                // IndexedDB has re-encrypted data, need to sync to server
+                console.log('[App] Completing interrupted re-encryption sync to server...');
+
+                try {
+                    // Read all re-encrypted data from IndexedDB
+                    const items = await LocalDB.getAll(LocalDB.STORES.ITEMS);
+                    const folders = await LocalDB.getAll(LocalDB.STORES.FOLDERS);
+
+                    // Extract only encrypted fields for the sync payload
+                    const itemPayload = items
+                        .filter(i => i.encrypted_data)
+                        .map(i => ({ id: i.id, encrypted_data: i.encrypted_data }));
+                    const folderPayload = folders
+                        .filter(f => f.encrypted_name || f.encrypted_icon)
+                        .map(f => ({ id: f.id, encrypted_name: f.encrypted_name, encrypted_icon: f.encrypted_icon }));
+
+                    const data = { items: itemPayload, folders: folderPayload };
+
+                    await ReEncryption._syncToServer(backup.new_salt, backup.new_kdf, data, backup.mode);
+
+                    // Server now has the re-encrypted data, update server-side salt
+                    await LocalDB.saveOfflineAuth(backup.new_salt, backup.new_kdf);
+                    await LocalDB.clearReencryptionBackup();
+                    console.log('[App] Re-encryption recovery sync complete');
+                } catch (syncError) {
+                    console.error('[App] Recovery sync to server failed:', syncError);
+                    // Don't clear backup - will retry on next unlock
+                    // User can still use the app (IndexedDB data is valid)
+                }
+            } else {
+                // Either:
+                // 1. Step 7 didn't complete → IndexedDB has old data, server has old data, all consistent
+                // 2. We're offline → can't sync, keep backup for next online unlock
+                // 3. Local mode → no server to sync to
+                if (stepSevenCompleted && isOffline) {
+                    console.log('[App] Recovery: IndexedDB updated but offline, will sync later');
+                    // Keep backup, will retry when online
+                } else if (!stepSevenCompleted) {
+                    // Step 7 didn't complete: IndexedDB and server both have old data
+                    // Safe to clear backup - no inconsistency
+                    console.log('[App] Recovery: step 7 incomplete, clearing stale backup');
+                    await LocalDB.clearReencryptionBackup();
+                } else {
+                    // Local mode with completed step 7: IndexedDB is authoritative, done
+                    console.log('[App] Recovery: local mode, IndexedDB is authoritative');
+                    await LocalDB.clearReencryptionBackup();
+                }
+            }
+        } catch (e) {
+            console.error('[App] Re-encryption recovery error:', e);
         }
     },
 
@@ -1847,7 +1989,7 @@ const App = {
             // Then refresh from server
             if (typeof Vault !== 'undefined') {
                 await Vault.forceRefresh();
-                this.state.lastSyncTime = new Date();
+                this.state.lastSyncTime = DateUtils.now();
 
                 // Notify UI components
                 window.dispatchEvent(new CustomEvent('vaultrefreshed'));

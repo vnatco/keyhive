@@ -39,7 +39,7 @@ const SubscriptionPage = {
                             </svg>
                         </div>
                         <h1 class="auth-title">Account Access Inactive</h1>
-                        <p class="auth-subtitle">Visit <a href="${Config.APP_URL}" target="_blank" style="color: var(--accent); font-weight: 600; text-decoration: none;">${Config.APP_DOMAIN}</a> to manage your account.</p>
+                        <p class="auth-subtitle">Visit <a href="${Config.APP_URL}" target="_blank" style="color: var(--accent); font-weight: 600; text-decoration: none;">${Config.WEB_APP_DOMAIN}</a> to manage your account.</p>
                     </div>
 
                     <div class="auth-footer">
@@ -66,8 +66,8 @@ const SubscriptionPage = {
         // Format trial end date for button text
         let trialEndFormatted = '';
         if (isTrialing && sub.trial_ends_at) {
-            const d = new Date(sub.trial_ends_at);
-            trialEndFormatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const d = DateUtils.parse(sub.trial_ends_at);
+            trialEndFormatted = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
         }
 
         let statusMessage = '';

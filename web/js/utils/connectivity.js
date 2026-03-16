@@ -89,8 +89,16 @@ const Connectivity = {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 5000);
 
+            // Build health URL with client version + platform for notice system
             const apiBase = Config.API_URL;
-            const response = await fetch(`${apiBase}/health`, {
+            let healthUrl = `${apiBase}/health`;
+            const version = typeof Config !== 'undefined' ? Config.VERSION : null;
+            const platform = typeof Platform !== 'undefined' ? Platform.getOS() : null;
+            if (version && platform) {
+                healthUrl += `?v=${encodeURIComponent(version)}&p=${encodeURIComponent(platform)}`;
+            }
+
+            const response = await fetch(healthUrl, {
                 method: 'GET',
                 cache: 'no-store',
                 signal: controller.signal
@@ -100,6 +108,18 @@ const Connectivity = {
             this._lastServerCheck = new Date();
 
             const isReachable = response.ok;
+
+            // Check for client notices in the response
+            if (isReachable) {
+                try {
+                    const data = await response.json();
+                    if (data.notice) {
+                        this._handleNotice(data.notice);
+                    }
+                } catch (e) {
+                    // JSON parse failure is fine — old server or non-JSON response
+                }
+            }
 
             // Update state if different
             if (isReachable !== this._isOnline) {
@@ -176,6 +196,14 @@ const Connectivity = {
         if (index > -1) {
             this._listeners.splice(index, 1);
         }
+    },
+
+    /**
+     * Handle a notice from the /health response
+     * Dispatches a custom event for the app to render
+     */
+    _handleNotice(notice) {
+        window.dispatchEvent(new CustomEvent('client-notice', { detail: notice }));
     },
 
     /**

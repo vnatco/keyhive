@@ -916,7 +916,6 @@ textarea.form-input {
     max-height: calc(100vh - var(--space-8));
     height: auto;
     border-radius: var(--radius-xl);
-    display: block;
 }
 
 .popup-overlay.popup-compact .popup-header {
@@ -924,8 +923,8 @@ textarea.form-input {
 }
 
 .popup-overlay.popup-compact .popup-body {
-    max-height: none;
-    overflow-y: visible;
+    flex: 0 1 auto;
+    overflow-y: auto;
 }
 
 .popup-overlay.popup-compact .popup-footer {

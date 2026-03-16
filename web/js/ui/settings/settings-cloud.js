@@ -165,7 +165,7 @@ const SettingsCloud = {
                             </div>
                             <div class="settings-item-content">
                                 <span class="settings-item-label">Account Settings</span>
-                                <span class="settings-item-hint">Visit <a href="${Config.APP_URL}" target="_blank" style="color: var(--accent); text-decoration: none;">${Config.APP_DOMAIN}</a> to manage your account</span>
+                                <span class="settings-item-hint">Visit <a href="${Config.APP_URL}" target="_blank" style="color: var(--accent); text-decoration: none;">${Config.WEB_APP_DOMAIN}</a> to manage your account</span>
                             </div>
                             <svg class="settings-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
@@ -2467,8 +2467,8 @@ const SettingsCloud = {
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="disabletotp-password">Enter Vault Key to Confirm</label>
-                    <input type="password" id="disabletotp-password" class="form-input" placeholder="Vault key" autocomplete="off">
+                    <label class="form-label" for="disabletotp-password">Enter Account Password to Confirm</label>
+                    <input type="password" id="disabletotp-password" class="form-input" placeholder="Account password" autocomplete="off">
                 </div>
             `,
             buttons: [
@@ -2484,17 +2484,7 @@ const SettingsCloud = {
                         if (!password) return false;
 
                         try {
-                            // Verify master password first
-                            const isValid = await CryptoAPI.verifyMasterPassword(password);
-
-                            if (!isValid) {
-                                Toast.error('Incorrect vault key');
-                                passwordInput.value = '';
-                                passwordInput.focus();
-                                return false;
-                            }
-
-                            const response = await ApiClient.totpDisable();
+                            const response = await ApiClient.totpDisable(password);
                             if (response.success) {
                                 Toast.success('Authenticator app disabled');
                                 self.twoFactorStatus.methods.totp = false;
@@ -2758,32 +2748,67 @@ const SettingsCloud = {
                                     const keyId = keyItem.dataset.id;
                                     const keyName = keyItem.querySelector('.webauthn-key-name').textContent;
 
-                                    if (confirm(`Remove security key "${keyName}"? You won't be able to use it to sign in anymore.`)) {
-                                        btn.disabled = true;
-                                        btn.innerHTML = '<span class="spinner-inline"></span>';
+                                    // Show password confirmation popup
+                                    Popup.open({
+                                        title: 'Remove Security Key',
+                                        body: `
+                                            <p class="popup-message">Remove security key "${Utils.escapeHtml(keyName)}"? You won't be able to use it to sign in anymore.</p>
+                                            <div class="form-group">
+                                                <label class="form-label" for="deletekey-password">Enter Account Password to Confirm</label>
+                                                <input type="password" id="deletekey-password" class="form-input" placeholder="Account password" autocomplete="off">
+                                            </div>
+                                        `,
+                                        compact: true,
+                                        buttons: [
+                                            { text: 'Cancel', type: 'secondary', isCancel: true },
+                                            {
+                                                text: 'Remove Key',
+                                                type: 'danger',
+                                                id: 'confirmDeleteKeyBtn',
+                                                disabled: true,
+                                                onClick: async () => {
+                                                    const pwInput = document.getElementById('deletekey-password');
+                                                    const password = pwInput?.value;
+                                                    if (!password) return false;
 
-                                        try {
-                                            const deleteResponse = await ApiClient.webauthnDeleteCredential(keyId);
-                                            if (deleteResponse.success) {
-                                                keyItem.remove();
-                                                Toast.success('Security key removed');
+                                                    try {
+                                                        const deleteResponse = await ApiClient.webauthnDeleteCredential(keyId, password);
+                                                        if (deleteResponse.success) {
+                                                            keyItem.remove();
+                                                            Toast.success('Security key removed');
 
-                                                // Check if any keys left
-                                                const remaining = api.getElement().querySelectorAll('.webauthn-key-item').length;
-                                                if (remaining === 0) {
-                                                    keysList.innerHTML = '<p class="no-keys">No security keys registered</p>';
-                                                    self.twoFactorStatus.methods.webauthn = false;
-                                                    self.loadSettings();
+                                                            const remaining = api.getElement().querySelectorAll('.webauthn-key-item').length;
+                                                            if (remaining === 0) {
+                                                                keysList.innerHTML = '<p class="no-keys">No security keys registered</p>';
+                                                                self.twoFactorStatus.methods.webauthn = false;
+                                                                self.loadSettings();
+                                                            }
+                                                            return true;
+                                                        } else {
+                                                            Toast.error(deleteResponse.message || 'Failed to remove security key');
+                                                            return false;
+                                                        }
+                                                    } catch (err) {
+                                                        Toast.error('Failed to remove security key');
+                                                        return false;
+                                                    }
                                                 }
-                                            } else {
-                                                throw new Error(deleteResponse.message);
                                             }
-                                        } catch (err) {
-                                            Toast.error('Failed to remove security key');
-                                            btn.disabled = false;
-                                            btn.textContent = 'Remove';
+                                        ],
+                                        focusFirst: true,
+                                        onOpen: (deleteApi) => {
+                                            const pwInput = deleteApi.querySelector('#deletekey-password');
+                                            pwInput?.addEventListener('input', () => {
+                                                deleteApi.setButtonDisabled('confirmDeleteKeyBtn', pwInput.value.length < 1);
+                                            });
+                                            pwInput?.addEventListener('keydown', (ev) => {
+                                                if (ev.key === 'Enter') {
+                                                    const confirmBtn = deleteApi.getElement().querySelector('#confirmDeleteKeyBtn');
+                                                    if (confirmBtn && !confirmBtn.disabled) confirmBtn.click();
+                                                }
+                                            });
                                         }
-                                    }
+                                    });
                                 });
                             });
                         }

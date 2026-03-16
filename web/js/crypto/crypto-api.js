@@ -226,8 +226,12 @@ const CryptoAPI = {
             // Get current verification hash
             const current = await this._request('getVerificationHash');
 
-            // Compare
-            return derived.verificationHash === current.hash;
+            // Compare using timing-safe comparison in worker
+            const cmpResult = await this._request('compareHashes', {
+                a: derived.verificationHash,
+                b: current.hash
+            });
+            return cmpResult.equal;
         } catch (e) {
             console.error('Master password verification failed:', e);
             return false;

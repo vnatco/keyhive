@@ -11,6 +11,7 @@ const Vault = {
     isUnlocked: false,
     _offlineMode: false,  // true = local-only mode (no API calls)
     _isSyncing: false,    // true = sync in progress (prevents concurrent syncs)
+    _keyVerified: false,  // true after first successful decryption (distinguishes wrong password from corruption)
     _lastSync: null,
 
     // Currently selected vault/folder (decrypted, for UI convenience)
@@ -108,9 +109,11 @@ const Vault = {
         }
 
         this.isUnlocked = true;
+        this._keyVerified = false;
         this._lastSync = await LocalDB.getLastSyncTime();
 
-        // Set default current vault, or create one if none exists
+        // Verify the key by decrypting the default vault — this MUST succeed.
+        // If it fails, the master password is wrong (not corruption).
         let defaultVault = await this.getDefaultVault();
         if (!defaultVault) {
             // No default vault exists - create one
@@ -130,6 +133,13 @@ const Vault = {
         // CRITICAL: Never sync during locked operations
         if (typeof App !== 'undefined' && App.isLocked()) {
             console.log('[Vault] Sync from server blocked - ' + (App.getLockReason() || 'operation') + ' in progress');
+            return;
+        }
+
+        // CRITICAL: Don't overwrite IndexedDB if there's an incomplete re-encryption.
+        // IndexedDB may have new-key data that the server doesn't have yet.
+        if (typeof LocalDB !== 'undefined' && await LocalDB.hasIncompleteReencryption()) {
+            console.warn('[Vault] Sync from server blocked - incomplete re-encryption detected');
             return;
         }
 
@@ -216,11 +226,26 @@ const Vault = {
                 icon: null,
             };
         }
-        return {
-            ...encryptedFolder,
-            name: encryptedFolder.encrypted_name ? await this.decryptField(encryptedFolder.encrypted_name) : '',
-            icon: encryptedFolder.encrypted_icon ? await this.decryptField(encryptedFolder.encrypted_icon) : null,
-        };
+        try {
+            const result = {
+                ...encryptedFolder,
+                name: encryptedFolder.encrypted_name ? await this.decryptField(encryptedFolder.encrypted_name) : '',
+                icon: encryptedFolder.encrypted_icon ? await this.decryptField(encryptedFolder.encrypted_icon) : null,
+            };
+            // First successful decryption confirms the key is correct
+            if (!this._keyVerified) this._keyVerified = true;
+            return result;
+        } catch (e) {
+            // If key hasn't been verified yet, this is a wrong password — let it throw
+            if (!this._keyVerified) throw e;
+            console.error(`[Vault] Failed to decrypt folder ${encryptedFolder.id}:`, e.message);
+            return {
+                ...encryptedFolder,
+                name: '[Corrupted]',
+                icon: null,
+                _corrupted: true,
+            };
+        }
     },
 
     /**
@@ -244,20 +269,37 @@ const Vault = {
             };
         }
 
-        const data = encryptedItem.encrypted_data
-            ? await Encryption.decryptObject(encryptedItem.encrypted_data)
-            : encryptedItem.data || {};
+        try {
+            const data = encryptedItem.encrypted_data
+                ? await Encryption.decryptObject(encryptedItem.encrypted_data)
+                : encryptedItem.data || {};
 
-        return {
-            id: encryptedItem.id,
-            item_type: encryptedItem.item_type,
-            folder_id: encryptedItem.folder_id,
-            version: encryptedItem.version,
-            sort_order: encryptedItem.sort_order,
-            created_at: encryptedItem.created_at,
-            updated_at: encryptedItem.updated_at,
-            data,
-        };
+            if (!this._keyVerified) this._keyVerified = true;
+            return {
+                id: encryptedItem.id,
+                item_type: encryptedItem.item_type,
+                folder_id: encryptedItem.folder_id,
+                version: encryptedItem.version,
+                sort_order: encryptedItem.sort_order,
+                created_at: encryptedItem.created_at,
+                updated_at: encryptedItem.updated_at,
+                data,
+            };
+        } catch (e) {
+            if (!this._keyVerified) throw e;
+            console.error(`[Vault] Failed to decrypt item ${encryptedItem.id}:`, e.message);
+            return {
+                id: encryptedItem.id,
+                item_type: encryptedItem.item_type,
+                folder_id: encryptedItem.folder_id,
+                version: encryptedItem.version,
+                sort_order: encryptedItem.sort_order,
+                created_at: encryptedItem.created_at,
+                updated_at: encryptedItem.updated_at,
+                data: { name: '[Corrupted]' },
+                _corrupted: true,
+            };
+        }
     },
 
     // ===========================================
@@ -1840,6 +1882,7 @@ const Vault = {
         this._currentFolderId = null;
         this._lastSync = null;
         this._offlineMode = false;
+        this._keyVerified = false;
         this.isUnlocked = false;
     },
 

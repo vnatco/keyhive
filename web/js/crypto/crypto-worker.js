@@ -34,6 +34,11 @@ const CONFIG = {
         hashLength: 32,     // 256 bits for AES-256
         type: 2,            // Argon2id
     },
+    // Minimum KDF params to prevent server-side downgrade attacks
+    kdfMinimums: {
+        memory: 32768,      // 32 MB minimum
+        iterations: 2,
+    },
     aes: {
         name: 'AES-GCM',
         length: 256,
@@ -129,6 +134,10 @@ self.onmessage = async function(event) {
                 result = { hash: _verificationHash };
                 break;
 
+            case 'compareHashes':
+                result = { equal: timingSafeEqual(payload.a, payload.b) };
+                break;
+
             case 'generateSalt':
                 result = { salt: generateSalt() };
                 break;
@@ -167,9 +176,9 @@ async function handleDeriveKey({ password, salt, kdf }) {
 
     const saltBytes = base64ToArrayBuffer(salt);
 
-    // Use provided KDF params or fall back to defaults
-    const kdfMemory = kdf?.memory || CONFIG.argon2.memory;
-    const kdfIterations = kdf?.iterations || CONFIG.argon2.iterations;
+    // Use provided KDF params or fall back to defaults, enforcing minimums
+    const kdfMemory = Math.max(kdf?.memory || CONFIG.argon2.memory, CONFIG.kdfMinimums.memory);
+    const kdfIterations = Math.max(kdf?.iterations || CONFIG.argon2.iterations, CONFIG.kdfMinimums.iterations);
     const kdfParallelism = kdf?.parallelism || CONFIG.argon2.parallelism;
 
     // Derive key using Argon2id
@@ -233,9 +242,9 @@ async function handleDeriveKeyForVerification({ password, salt, kdf }) {
 
     const saltBytes = base64ToArrayBuffer(salt);
 
-    // Use provided KDF params or fall back to defaults
-    const kdfMemory = kdf?.memory || CONFIG.argon2.memory;
-    const kdfIterations = kdf?.iterations || CONFIG.argon2.iterations;
+    // Use provided KDF params or fall back to defaults, enforcing minimums
+    const kdfMemory = Math.max(kdf?.memory || CONFIG.argon2.memory, CONFIG.kdfMinimums.memory);
+    const kdfIterations = Math.max(kdf?.iterations || CONFIG.argon2.iterations, CONFIG.kdfMinimums.iterations);
     const kdfParallelism = kdf?.parallelism || CONFIG.argon2.parallelism;
 
     // Derive key using Argon2id
@@ -516,8 +525,8 @@ async function handleReEncryptForExport({ items, newPassword, newSalt, newKdf })
 
     // Derive NEW key temporarily (NOT stored in global state)
     const saltBytes = base64ToArrayBuffer(newSalt);
-    const kdfMemory = newKdf?.memory || CONFIG.argon2.memory;
-    const kdfIterations = newKdf?.iterations || CONFIG.argon2.iterations;
+    const kdfMemory = Math.max(newKdf?.memory || CONFIG.argon2.memory, CONFIG.kdfMinimums.memory);
+    const kdfIterations = Math.max(newKdf?.iterations || CONFIG.argon2.iterations, CONFIG.kdfMinimums.iterations);
     const kdfParallelism = newKdf?.parallelism || CONFIG.argon2.parallelism;
 
     const argonResult = await argon2.hash({
@@ -553,7 +562,7 @@ async function handleReEncryptForExport({ items, newPassword, newSalt, newKdf })
                 const plaintext = JSON.stringify(item.decrypted_data);
                 const encoded = new TextEncoder().encode(plaintext);
                 const encrypted = await crypto.subtle.encrypt(
-                    { name: CONFIG.aes.name, iv },
+                    { name: CONFIG.aes.name, iv, tagLength: CONFIG.aes.tagLength },
                     tempKey,
                     encoded
                 );
@@ -568,7 +577,7 @@ async function handleReEncryptForExport({ items, newPassword, newSalt, newKdf })
                 const iv = crypto.getRandomValues(new Uint8Array(CONFIG.aes.ivLength));
                 const encoded = new TextEncoder().encode(item.decrypted_name);
                 const encrypted = await crypto.subtle.encrypt(
-                    { name: CONFIG.aes.name, iv },
+                    { name: CONFIG.aes.name, iv, tagLength: CONFIG.aes.tagLength },
                     tempKey,
                     encoded
                 );
@@ -583,7 +592,7 @@ async function handleReEncryptForExport({ items, newPassword, newSalt, newKdf })
                 const iv = crypto.getRandomValues(new Uint8Array(CONFIG.aes.ivLength));
                 const encoded = new TextEncoder().encode(item.decrypted_icon);
                 const encrypted = await crypto.subtle.encrypt(
-                    { name: CONFIG.aes.name, iv },
+                    { name: CONFIG.aes.name, iv, tagLength: CONFIG.aes.tagLength },
                     tempKey,
                     encoded
                 );
@@ -624,8 +633,8 @@ async function handleImportDecrypt({ items, password, salt, kdf }) {
 
     // Derive temporary key from import file's password and salt
     const saltBytes = base64ToArrayBuffer(salt);
-    const kdfMemory = kdf?.memory || CONFIG.argon2.memory;
-    const kdfIterations = kdf?.iterations || CONFIG.argon2.iterations;
+    const kdfMemory = Math.max(kdf?.memory || CONFIG.argon2.memory, CONFIG.kdfMinimums.memory);
+    const kdfIterations = Math.max(kdf?.iterations || CONFIG.argon2.iterations, CONFIG.kdfMinimums.iterations);
     const kdfParallelism = kdf?.parallelism || CONFIG.argon2.parallelism;
 
     const argonResult = await argon2.hash({
@@ -829,7 +838,7 @@ async function handleGenerateRecoveryCodes({ password, salt, kdf, count = 8 }) {
 
     // Verify this matches our current key by checking verification hash
     const derivedVerificationHash = await createVerificationHash(keyBytes);
-    if (derivedVerificationHash !== _verificationHash) {
+    if (!timingSafeEqual(derivedVerificationHash, _verificationHash)) {
         keyBytes.fill(0);
         throw new Error('Password verification failed');
     }

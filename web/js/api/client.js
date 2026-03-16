@@ -377,8 +377,8 @@ const ApiClient = {
         return this.post('/auth/2fa/totp/confirm', { code, password });
     },
 
-    totpDisable() {
-        return this.post('/auth/2fa/totp/disable');
+    totpDisable(password) {
+        return this.post('/auth/2fa/totp/disable', { password });
     },
 
     // Email OTP setup (sends code to user's email)
@@ -404,8 +404,8 @@ const ApiClient = {
         return this.get('/auth/2fa/webauthn/credentials');
     },
 
-    webauthnDeleteCredential(credentialId) {
-        return this.post('/auth/2fa/webauthn/delete', { credential_id: credentialId });
+    webauthnDeleteCredential(credentialId, password) {
+        return this.post('/auth/2fa/webauthn/delete', { credential_id: credentialId, password });
     },
 
     // Registration flow methods

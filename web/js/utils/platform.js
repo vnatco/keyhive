@@ -124,6 +124,22 @@ const Platform = {
         return this.platform === 'web';
     },
 
+    /**
+     * Get the OS-level platform string for server communication
+     * @returns {string} 'windows' | 'mac' | 'linux' | 'ios' | 'android' | 'web'
+     */
+    getOS() {
+        if (this.platform === 'ios') return 'ios';
+        if (this.platform === 'android') return 'android';
+
+        const ua = navigator.userAgent;
+        if (/Windows/i.test(ua)) return 'windows';
+        if (/Macintosh|Mac OS/i.test(ua)) return 'mac';
+        if (/Linux/i.test(ua)) return 'linux';
+
+        return 'web';
+    },
+
     // ===========================================
     // Desktop Mode Activation (called by Electron/Tauri preload)
     // ===========================================
