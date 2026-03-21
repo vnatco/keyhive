@@ -11,14 +11,14 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'%3E%3C/path%3E%3C/svg%3E">
 
     <!-- Preload — theme + loading styles (before main CSS to prevent flash) -->
-    <script src="/js/preload.js"></script>
-    <link rel="stylesheet" href="/css/preload.css">
+    <script src="/js/preload.js?v=1.3.6"></script>
+    <link rel="stylesheet" href="/css/preload.css?v=1.3.6">
 
     <!-- Styles - Modular CSS -->
-    <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/pages.css">
+    <link rel="stylesheet" href="/css/base.css?v=1.3.6">
+    <link rel="stylesheet" href="/css/layout.css?v=1.3.6">
+    <link rel="stylesheet" href="/css/components.css?v=1.3.6">
+    <link rel="stylesheet" href="/css/pages.css?v=1.3.6">
 </head>
 <body>
     <div id="app">
@@ -32,79 +32,79 @@
     </div>
 
     <!-- Argon2 WASM (self-hosted) -->
-    <script src="/js/lib/argon2.min.js"></script>
+    <script src="/js/lib/argon2.min.js?v=1.3.6"></script>
 
     <!-- QRCode.js for TOTP setup (self-hosted) -->
-    <script src="/js/lib/qrcode.min.js"></script>
+    <script src="/js/lib/qrcode.min.js?v=1.3.6"></script>
 
     <!-- Configuration -->
-    <script src="/js/config.js"></script>
+    <script src="/js/config.js?v=1.3.6"></script>
 
     <!-- Shared Utilities -->
-    <script src="/js/utils/utils.js"></script>
-    <script src="/js/utils/date-utils.js"></script>
-    <script src="/js/utils/secret-store.js"></script>
+    <script src="/js/utils/utils.js?v=1.3.6"></script>
+    <script src="/js/utils/date-utils.js?v=1.3.6"></script>
+    <script src="/js/utils/secret-store.js?v=1.3.6"></script>
 
     <!-- Platform Detection & Native App Integration -->
-    <script src="/js/utils/platform.js"></script>
+    <script src="/js/utils/platform.js?v=1.3.6"></script>
 
     <!-- Core modules -->
     <!-- Crypto operations isolated in Web Worker for security -->
-    <script src="/js/crypto/crypto-api.js"></script>
-    <script src="/js/crypto/re-encryption.js"></script>
-    <script src="/js/utils/password-generator.js"></script>
-    <script src="/js/utils/totp-generator.js"></script>
-    <script src="/js/utils/session-timeout.js"></script>
-    <script src="/js/utils/security-analyzer.js"></script>
-    <script src="/js/utils/breach-checker.js"></script>
-    <script src="/js/utils/clipboard.js"></script>
-    <script src="/js/utils/favicon-fetcher.js"></script>
-    <script src="/js/utils/connectivity.js"></script>
-    <script src="/js/utils/biometric.js"></script>
-    <script src="/js/utils/temp-id.js"></script>
-    <script src="/js/utils/id-encoder.js"></script>
-    <script src="/js/utils/random-names.js"></script>
-    <script src="/js/storage/secure-token-store.js"></script>
-    <script src="/js/api/client.js"></script>
-    <script src="/js/storage/local-db.js"></script>
-    <script src="/js/storage/vault.js"></script>
+    <script src="/js/crypto/crypto-api.js?v=1.3.6"></script>
+    <script src="/js/crypto/re-encryption.js?v=1.3.6"></script>
+    <script src="/js/utils/password-generator.js?v=1.3.6"></script>
+    <script src="/js/utils/totp-generator.js?v=1.3.6"></script>
+    <script src="/js/utils/session-timeout.js?v=1.3.6"></script>
+    <script src="/js/utils/security-analyzer.js?v=1.3.6"></script>
+    <script src="/js/utils/breach-checker.js?v=1.3.6"></script>
+    <script src="/js/utils/clipboard.js?v=1.3.6"></script>
+    <script src="/js/utils/favicon-fetcher.js?v=1.3.6"></script>
+    <script src="/js/utils/connectivity.js?v=1.3.6"></script>
+    <script src="/js/utils/biometric.js?v=1.3.6"></script>
+    <script src="/js/utils/temp-id.js?v=1.3.6"></script>
+    <script src="/js/utils/id-encoder.js?v=1.3.6"></script>
+    <script src="/js/utils/random-names.js?v=1.3.6"></script>
+    <script src="/js/storage/secure-token-store.js?v=1.3.6"></script>
+    <script src="/js/api/client.js?v=1.3.6"></script>
+    <script src="/js/storage/local-db.js?v=1.3.6"></script>
+    <script src="/js/storage/vault.js?v=1.3.6"></script>
 
     <!-- Search Utilities -->
-    <script src="/js/utils/search-utils.js"></script>
+    <script src="/js/utils/search-utils.js?v=1.3.6"></script>
 
     <!-- UI Components -->
-    <script src="/js/ui/popup.js"></script>
-    <script src="/js/utils/client-notice.js"></script>
-    <script src="/js/ui/custom-select.js"></script>
-    <script src="/js/ui/folder-browser.js"></script>
-    <script src="/js/ui/toast.js"></script>
-    <script src="/js/ui/dropdown-manager.js"></script>
-    <script src="/js/ui/sidebar.js"></script>
-    <script src="/js/ui/footer.js"></script>
-    <script src="/js/ui/home.js"></script>
-    <script src="/js/ui/search-page.js"></script>
-    <script src="/js/ui/add-edit-page.js"></script>
-    <script src="/js/ui/view-page.js"></script>
-    <script src="/js/ui/generator-page.js"></script>
-    <script src="/js/ui/security-page.js"></script>
+    <script src="/js/ui/popup.js?v=1.3.6"></script>
+    <script src="/js/utils/client-notice.js?v=1.3.6"></script>
+    <script src="/js/ui/custom-select.js?v=1.3.6"></script>
+    <script src="/js/ui/folder-browser.js?v=1.3.6"></script>
+    <script src="/js/ui/toast.js?v=1.3.6"></script>
+    <script src="/js/ui/dropdown-manager.js?v=1.3.6"></script>
+    <script src="/js/ui/sidebar.js?v=1.3.6"></script>
+    <script src="/js/ui/footer.js?v=1.3.6"></script>
+    <script src="/js/ui/home.js?v=1.3.6"></script>
+    <script src="/js/ui/search-page.js?v=1.3.6"></script>
+    <script src="/js/ui/add-edit-page.js?v=1.3.6"></script>
+    <script src="/js/ui/view-page.js?v=1.3.6"></script>
+    <script src="/js/ui/generator-page.js?v=1.3.6"></script>
+    <script src="/js/ui/security-page.js?v=1.3.6"></script>
     <!-- Settings -->
-    <script src="/js/ui/settings/base.js"></script>
-    <script src="/js/ui/settings/trash.js"></script>
-    <script src="/js/ui/settings/settings-local.js"></script>
-    <script src="/js/ui/settings/settings-cloud.js"></script>
-    <script src="/js/ui/settings/index.js"></script>
+    <script src="/js/ui/settings/base.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/trash.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/settings-local.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/settings-cloud.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/index.js?v=1.3.6"></script>
     <!-- Import -->
-    <script src="/js/ui/settings/import/base-importer.js"></script>
-    <script src="/js/ui/settings/import/import-renderer.js"></script>
-    <script src="/js/ui/settings/import/flow-controller.js"></script>
-    <script src="/js/ui/settings/import/importers/keyhive-v1.js"></script>
-    <script src="/js/ui/settings/import/importers/nextcloud-passwords.js"></script>
-    <script src="/js/ui/settings/import/index.js"></script>
-    <script src="/js/ui/subscription-page.js"></script>
-    <script src="/js/ui/auth-pages.js"></script>
+    <script src="/js/ui/settings/import/base-importer.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/import/import-renderer.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/import/flow-controller.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/import/importers/keyhive-v1.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/import/importers/nextcloud-passwords.js?v=1.3.6"></script>
+    <script src="/js/ui/settings/import/index.js?v=1.3.6"></script>
+    <script src="/js/ui/subscription-page.js?v=1.3.6"></script>
+    <script src="/js/ui/auth-pages.js?v=1.3.6"></script>
 
     <!-- Main App -->
-    <script src="/js/app.js"></script>
+    <script src="/js/app.js?v=1.3.6"></script>
 
 </body>
 </html>

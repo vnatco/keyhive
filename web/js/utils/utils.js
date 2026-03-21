@@ -179,32 +179,89 @@ const Utils = {
      */
     parseLightMarkdown(str) {
         if (!str) return '';
-        // Escape all HTML first
-        let html = this.escapeHtml(str);
+        const self = this;
 
-        // Headers (## at start of line) — must come before bold
-        html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
-        html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
-        html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+        // Split into lines and process sequentially, grouping by type
+        const lines = str.trim().split('\n');
+        const output = [];
+        let i = 0;
 
-        // Horizontal rule (--- on its own line)
-        html = html.replace(/^---$/gm, '<hr>');
+        while (i < lines.length) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            // Skip blank lines (they separate paragraphs)
+            if (!trimmed) { i++; continue; }
+
+            // Horizontal rule
+            if (/^---+$/.test(trimmed)) {
+                output.push('<hr>');
+                i++;
+                continue;
+            }
+
+            // Header
+            const headerMatch = trimmed.match(/^(#{1,3}) (.+)$/);
+            if (headerMatch) {
+                const level = headerMatch[1].length + 1;
+                output.push(`<h${level}>${self._inlineMarkdown(headerMatch[2])}</h${level}>`);
+                i++;
+                continue;
+            }
+
+            // Unordered list - collect consecutive lines starting with -
+            if (/^- /.test(trimmed)) {
+                const items = [];
+                while (i < lines.length && /^- /.test(lines[i].trim())) {
+                    items.push(`<li>${self._inlineMarkdown(lines[i].trim().slice(2))}</li>`);
+                    i++;
+                }
+                output.push(`<ul>${items.join('')}</ul>`);
+                continue;
+            }
+
+            // Ordered list - collect consecutive lines starting with number.
+            if (/^\d+\. /.test(trimmed)) {
+                const items = [];
+                while (i < lines.length && /^\d+\. /.test(lines[i].trim())) {
+                    items.push(`<li>${self._inlineMarkdown(lines[i].trim().replace(/^\d+\. /, ''))}</li>`);
+                    i++;
+                }
+                output.push(`<ol>${items.join('')}</ol>`);
+                continue;
+            }
+
+            // Regular paragraph - collect consecutive non-special lines
+            const pLines = [];
+            while (i < lines.length && lines[i].trim() && !/^(#{1,3} |---+$|- |\d+\. )/.test(lines[i].trim())) {
+                pLines.push(self._inlineMarkdown(lines[i]));
+                i++;
+            }
+            output.push(`<p>${pLines.join('<br>')}</p>`);
+        }
+
+        return output.join('');
+    },
+
+    /**
+     * Parse inline markdown (bold, italic, links) on a single line.
+     * Escapes HTML first for XSS safety.
+     */
+    _inlineMarkdown(line) {
+        let html = this.escapeHtml(line);
 
         // Bold (**text**)
         html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
-        // Italic (*text*) — but not inside bold
+        // Italic (*text*)
         html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
 
-        // Links [text](url) — sanitize URL
+        // Links [text](url)
         html = html.replace(/\[(.+?)\]\((.+?)\)/g, (_, text, url) => {
             const safeUrl = this.sanitizeUrl(url);
             if (!safeUrl) return text;
             return `<a href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
         });
-
-        // Newlines → <br>
-        html = html.replace(/\n/g, '<br>');
 
         return html;
     },

@@ -140,6 +140,15 @@
     box-sizing: border-box;
 }
 
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
 html {
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;

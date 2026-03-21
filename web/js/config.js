@@ -3,7 +3,7 @@
  */
 const Config = {
     // App version (dev default, overwritten by build)
-    VERSION: '1.3.5',
+    VERSION: '1.3.6',
 
     // Web app domain (no protocol). Display-only label shown on native platforms when
     // certain features are only available via the web app (e.g. account settings, subscription).

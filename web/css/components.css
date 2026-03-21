@@ -829,6 +829,48 @@ textarea.form-input {
     font-weight: 600;
 }
 
+.popup-message h2,
+.popup-message h3,
+.popup-message h4 {
+    color: var(--color-text-primary);
+    margin: var(--space-3) 0 var(--space-1);
+}
+
+.popup-message h2:first-child,
+.popup-message h3:first-child,
+.popup-message h4:first-child {
+    margin-top: 0;
+}
+
+.popup-message p {
+    margin: 0 0 var(--space-2);
+}
+
+.popup-message p:last-child {
+    margin-bottom: 0;
+}
+
+.popup-message ul,
+.popup-message ol {
+    margin: 0 0 var(--space-2);
+    padding-left: var(--space-5);
+}
+
+.popup-message li {
+    margin-bottom: var(--space-1);
+}
+
+.popup-message li:last-child {
+    margin-bottom: 0;
+}
+
+.popup-message hr {
+    border: none;
+    height: 0.25em;
+    background: var(--color-border-light);
+    margin: var(--space-3) 0;
+}
+
 .popup-checkbox {
     margin-top: var(--space-4);
     padding-top: var(--space-4);

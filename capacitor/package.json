@@ -1,6 +1,6 @@
 {
   "name": "keyhive-mobile",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "KeyHive Mobile App",
   "license": "AGPL-3.0-or-later",
   "dependencies": {
