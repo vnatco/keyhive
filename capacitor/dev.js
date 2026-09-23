@@ -67,7 +67,7 @@ function setupIOS() {
     const INFO_PLIST = path.join(IOS_APP, 'Info.plist');
     const APPICONSET = path.join(IOS_APP, 'Assets.xcassets', 'AppIcon.appiconset');
     const ICON_SRC = path.join(ROOT, 'icons', '1024x1024.png');
-    const VERSION_FILE = path.join(ROOT, '..', 'version.json');
+    const VERSION_FILE = path.join(ROOT, '..', '..', 'version.json');
 
     if (!fs.existsSync(INFO_PLIST)) {
         console.log('  SKIP  iOS setup (ios/ not initialized)');

@@ -10,6 +10,21 @@
 
 const AuthPages = {
     currentView: 'login',
+
+    /**
+     * Label for the "trust this device" checkbox on the 2FA screen.
+     *
+     * Installed clients (native app / home-screen PWA) are remembered until the
+     * device is revoked, matching their never-expiring session - so offering a
+     * duration there would be a lie. A browser gets a bounded window equal to
+     * its session length; trust outliving the session is pointless.
+     *
+     * The 30 days must match `session.web_ttl` in release.config.json.
+     */
+    trustDeviceLabel() {
+        const installed = typeof Platform !== 'undefined' && Platform.isInstalledClient();
+        return installed ? 'Remember this device' : 'Trust this device for 30 days';
+    },
     isLoading: false,
 
     /**
@@ -764,7 +779,7 @@ const AuthPages = {
                         <label class="custom-checkbox custom-checkbox--on-surface">
                             <input type="checkbox" id="trustDeviceCheck">
                             <span class="checkmark"></span>
-                            <span class="checkbox-text">Trust this device for 90 days</span>
+                            <span class="checkbox-text">${AuthPages.trustDeviceLabel()}</span>
                         </label>
                     </div>
 
@@ -844,7 +859,7 @@ const AuthPages = {
                         <label class="custom-checkbox custom-checkbox--on-surface">
                             <input type="checkbox" id="trustDeviceCheck">
                             <span class="checkmark"></span>
-                            <span class="checkbox-text">Trust this device for 90 days</span>
+                            <span class="checkbox-text">${AuthPages.trustDeviceLabel()}</span>
                         </label>
                     </div>
 

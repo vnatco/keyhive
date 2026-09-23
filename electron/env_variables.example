@@ -1,0 +1,26 @@
+# env_variables.example — Apple credentials for signing/notarizing native builds.
+# ---------------------------------------------------------------------------
+# These are NOT loaded automatically. `node cli.js` / `node dev.js` launch Xcode
+# (iOS) and electron-builder (macOS) as CHILD processes, which inherit these vars
+# FROM YOUR SHELL. Without them: iOS has no signing team (Xcode refuses to build)
+# and macOS notarization is skipped, so the build fails or ships unsigned.
+#
+# HOW TO USE
+#   1. Copy this to a REAL file kept OUTSIDE this repo (never commit real values):
+#        cp env_variables.example ~/keyhive-secrets/env_variables.env
+#   2. Fill in your real Apple values below.
+#   3. SOURCE it into your terminal (the word `export` means it must be sourced,
+#      not executed):
+#        source ~/keyhive-secrets/env_variables.env
+#   4. In the SAME terminal, run the build:
+#        cd app-capacitor && node cli.js     # iOS  -> needs APPLE_TEAM_ID
+#        cd app-electron  && node cli.js     # macOS -> sign + notarize the .dmg
+#
+#   Tip: to load it automatically in every terminal, add step 3 to your ~/.zshrc.
+
+export APPLE_ID=your-apple-id@example.com               # Apple Developer account email
+export APPLE_APP_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx   # appleid.apple.com -> App-Specific Passwords
+export APPLE_TEAM_ID=XXXXXXXXXX                          # 10-char Team ID (Apple Developer -> Membership)
+
+# Only the PUBLIC dev.js build needs this (cli.js has the signing identity hardcoded):
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (XXXXXXXXXX)"
