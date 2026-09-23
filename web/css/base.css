@@ -91,6 +91,7 @@
     --z-sidebar: 40;
     --z-header: 50;
     --z-footer: 50;
+    --z-fixed: 150;
     --z-modal-backdrop: 200;
     --z-modal: 300;
     --z-popup: 500;
@@ -100,7 +101,63 @@
     --header-height: 60px;
     --footer-height: 70px;
     --sidebar-width: 280px;
+    --offline-banner-height: 36px;
+
+    /* Floating bottom nav (mobile shapes) */
+    --nav-height: 58px;
+    --nav-gap: 2px;
+    /* Island bottom offset (native): floats low into the home-indicator zone.
+       The .footer position uses this directly so everything below stays in sync. */
+    --nav-bottom: max(10px, calc(var(--safe-area-bottom) - 12px));
+    /* Top edge of the island from the screen bottom — toasts, FAB and content clear this. */
+    --nav-reserve: calc(var(--nav-bottom) + var(--nav-height));
+    /* Space the bottom nav occupies in the CURRENT shape — set per shape/platform below.
+       0 = desktop sidebar · --footer-height = edge-to-edge bar (web) · --nav-reserve = native pill */
+    --bottom-nav-space: 0px;
+
+    /* Platform insets — 0 by default, overridden per data-platform below.
+       Kept under the --safe-area-* names for backward compat with existing rules. */
+    --safe-area-top: 0px;
+    --safe-area-bottom: 0px;
+    --safe-area-left: 0px;
+    --safe-area-right: 0px;
+
+    /* Desktop custom title-bar height — 0 unless the Electron frameless shell sets it */
+    --titlebar-height: 0px;
+}
+
+/* ==========================================
+   PLATFORM CONTRACT — one switch drives all spacing.
+   Platform.apply(p) sets  <html data-platform="ios|android|electron|web">
+   and                     <html data-shape="mobile|desktop">.
+   Every layout rule keys off these two attributes + the variables above,
+   so there are no per-platform spacing hacks scattered across files.
+   ========================================== */
+
+/* Mobile shape (native app OR narrow browser) shows a bottom nav.
+   Default nav is the edge-to-edge bar; native overrides to the floating pill below. */
+:root[data-shape="mobile"] {
+    --bottom-nav-space: var(--footer-height);
+}
+
+/* Native mobile — real safe-area insets + the floating-pill nav reserve.
+   (This rule follows the shape rule above, so on native it wins.) */
+:root[data-platform="ios"],
+:root[data-platform="android"] {
+    --safe-area-top: env(safe-area-inset-top, 0px);
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+    --bottom-nav-space: var(--nav-reserve);
+}
+
+/* Electron desktop with a custom (frameless) title bar */
+:root[data-platform="electron"] {
+    --titlebar-height: 38px;
+}
+/* Linux etc. keep the native OS frame — no custom bar, no offset */
+:root[data-platform="electron"][data-titlebar="native"] {
+    --titlebar-height: 0px;
 }
 
 /* Dark Theme - Pure blacks and greys */

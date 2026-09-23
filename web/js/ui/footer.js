@@ -22,6 +22,38 @@ const Footer = {
     init() {
         this.render();
         this.bindEvents();
+        // Island minimize-on-scroll. Always wired up (the .nav-min CSS only affects the
+        // native island, so it's a no-op on the web bar) — this way it also works when
+        // previewing the island in a browser via AppFrame.applyPlatform('ios').
+        this.initScrollMinimize();
+    },
+
+    /**
+     * Shrink the floating island while scrolling down; expand on scroll up or when
+     * scrolling stops. Listens in the capture phase to catch the inner .page-content scroll.
+     */
+    initScrollMinimize() {
+        this._lastScrollY = 0;
+        document.addEventListener('scroll', (e) => {
+            const el = e.target;
+            if (!el || !el.closest || !el.closest('.pages')) return;  // main list scroller only
+            const footer = document.querySelector('#app > .footer');
+            if (!footer) return;
+            const y = el.scrollTop || 0;
+            if (y > this._lastScrollY + 3 && y > 40) {
+                footer.classList.add('nav-min');       // scrolling down -> minimize (stays minimized)
+            } else if (y < this._lastScrollY - 3) {
+                footer.classList.remove('nav-min');    // scrolling up -> maximize
+            }
+            this._lastScrollY = y;
+        }, true);
+    },
+
+    /** Maximize the island (called on page/tab switch) and reset scroll tracking. */
+    expandNav() {
+        const footer = document.querySelector('#app > .footer');
+        if (footer) footer.classList.remove('nav-min');
+        this._lastScrollY = 0;
     },
 
     /**
@@ -102,6 +134,9 @@ const Footer = {
                 item.classList.remove('active');
             }
         });
+
+        // Switching pages always shows the full island
+        this.expandNav();
     },
 
     /**

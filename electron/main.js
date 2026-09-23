@@ -4,6 +4,16 @@ const fs = require('fs');
 
 
 // ============================================================
+// LINUX WAYLAND NOTE
+// ============================================================
+// Wayland doesn't support X11's XGrabKey, so Electron's globalShortcut
+// may fail. The app handles this gracefully with a notification telling
+// users to use the system tray icon instead. We no longer force X11
+// backend as it causes GPU crashes and window creation failures on
+// some Linux systems.
+
+
+// ============================================================
 // SECURITY HARDENING
 // ============================================================
 
@@ -82,13 +92,19 @@ function saveWindowState() {
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
     const bounds = mainWindow.getBounds();
-    currentSettings.windowState = {
-        x: bounds.x,
-        y: bounds.y,
+    const state = {
         width: bounds.width,
         height: bounds.height
     };
 
+    // On Linux/Wayland, getBounds() often returns 0,0 for position
+    // Only save position on macOS/Windows where it's reliable
+    if (process.platform !== 'linux') {
+        state.x = bounds.x;
+        state.y = bounds.y;
+    }
+
+    currentSettings.windowState = state;
     saveSettings();
 }
 
@@ -102,8 +118,13 @@ function registerToggleShortcut(shortcut) {
     try {
         const success = globalShortcut.register(shortcut, () => {
             if (mainWindow?.isVisible() && mainWindow?.isFocused()) {
-                mainWindow.hide();
+                if (process.platform === 'linux') {
+                    mainWindow.minimize();
+                } else {
+                    mainWindow.hide();
+                }
             } else {
+                mainWindow?.restore();
                 mainWindow?.show();
                 mainWindow?.focus();
             }
@@ -305,9 +326,10 @@ function createTray() {
     tray.setToolTip('KeyHive');
     
     const contextMenu = Menu.buildFromTemplate([
-        { 
-            label: 'Show KeyHive', 
+        {
+            label: 'Show KeyHive',
             click: () => {
+                mainWindow?.restore();
                 mainWindow?.show();
                 mainWindow?.focus();
             }
@@ -326,8 +348,13 @@ function createTray() {
     
     tray.on('click', () => {
         if (mainWindow?.isVisible() && mainWindow?.isFocused()) {
-            mainWindow.hide();
+            if (process.platform === 'linux') {
+                mainWindow.minimize();
+            } else {
+                mainWindow.hide();
+            }
         } else {
+            mainWindow?.restore();
             mainWindow?.show();
             mainWindow?.focus();
         }
@@ -342,9 +369,11 @@ function createWindow() {
     
     let windowState = loadWindowState();
     let bounds;
-    
+
     if (windowState) {
-        if (isPositionValid(windowState.x, windowState.y, windowState.width, windowState.height)) {
+        // On Linux, don't restore position (Wayland returns unreliable coordinates)
+        if (process.platform !== 'linux' && windowState.x != null && windowState.y != null &&
+            isPositionValid(windowState.x, windowState.y, windowState.width, windowState.height)) {
             bounds = {
                 x: windowState.x,
                 y: windowState.y,
@@ -360,15 +389,15 @@ function createWindow() {
     } else {
         bounds = getCenteredBounds(defaultWidth, defaultHeight);
     }
-    
-    mainWindow = new BrowserWindow({
-        x: bounds.x,
-        y: bounds.y,
+
+    // Only set x,y on macOS/Windows (Wayland doesn't support reliable positioning)
+    const windowOpts = {
+        ...(bounds.x != null && bounds.y != null ? { x: bounds.x, y: bounds.y } : {}),
         width: bounds.width,
         height: bounds.height,
         minWidth: minWidth,
         minHeight: minHeight,
-        frame: false,
+        frame: process.platform === 'linux',
         autoHideMenuBar: true,
         icon: createAppIcon(),
         webPreferences: {
@@ -384,7 +413,9 @@ function createWindow() {
             enableBlinkFeatures: '',        // Disable extra Blink features
             preload: path.join(__dirname, 'preload.js')
         }
-    });
+    };
+
+    mainWindow = new BrowserWindow(windowOpts);
 
     // ============================================================
     // SECURITY: Block navigation to external URLs
@@ -470,19 +501,21 @@ function createWindow() {
     // mainWindow.webContents.openDevTools();
     // ============================================================
 
-    // Minimize to tray instead of taskbar
-    mainWindow.on('minimize', (event) => {
-        event.preventDefault();
-        mainWindow.hide();
-    });
+    // Minimize to taskbar on Linux, hide to tray on Mac/Windows
+    if (process.platform !== 'linux') {
+        mainWindow.on('minimize', (event) => {
+            event.preventDefault();
+            mainWindow.hide();
+        });
+    }
 
-    // Hide to tray on close (unless quitting)
+    // Close hides to tray (unless quitting)
     mainWindow.on('close', (event) => {
+        saveWindowState();
         if (!app.isQuitting) {
             event.preventDefault();
             mainWindow.hide();
         }
-        saveWindowState();
     });
 
     // Save state on move/resize (debounced)
@@ -493,7 +526,10 @@ function createWindow() {
     };
     
     mainWindow.on('resize', debouncedSave);
-    mainWindow.on('move', debouncedSave);
+    // On Linux/Wayland, move events report unreliable 0,0 positions - only save on resize
+    if (process.platform !== 'linux') {
+        mainWindow.on('move', debouncedSave);
+    }
 
     // Register global shortcut from settings
     registerToggleShortcut(currentSettings.shortcut);
@@ -670,7 +706,7 @@ app.whenReady().then(() => {
     // ============================================================
     const CSP = [
         "default-src 'self' app:",
-        "script-src 'self' 'wasm-unsafe-eval' 'sha256-qdXJjEG/5WNJAz52BRfAkidW5L2+qDXJ8zrJoaq9WAQ=' app:",
+        "script-src 'self' 'wasm-unsafe-eval' app:",
         "style-src 'self' 'unsafe-inline' app:",
         "img-src 'self' data: blob: app:",
         "media-src 'self' blob: app:",

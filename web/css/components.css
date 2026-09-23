@@ -470,11 +470,24 @@ textarea.form-input {
 
 .card-subtitle {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    column-gap: var(--space-2);
+    gap: var(--space-2);
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
+    overflow: hidden;
+}
+
+.card-subtitle .card-username {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-subtitle .card-inline-totp {
+    flex-shrink: 0;
 }
 
 .card-actions {
@@ -912,7 +925,6 @@ textarea.form-input {
     .popup-header {
         flex-shrink: 0;
         padding: var(--space-4);
-        padding-top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
     }
 
     .popup-body {
@@ -2241,16 +2253,14 @@ body.popup-open {
     height: 16px;
 }
 
-/* Toast above footer only when footer is visible */
+/* Toast sits above the floating nav when it's visible */
 .toast-container.footer-visible {
-    bottom: calc(var(--footer-height) + var(--safe-area-bottom) + var(--space-4));
+    bottom: calc(var(--bottom-nav-space) + var(--space-2));
 }
 
-/* On desktop, footer is always hidden, so never account for it */
-@media (min-width: 768px) {
-    .toast-container.footer-visible {
-        bottom: var(--space-4);
-    }
+/* On desktop the nav is a sidebar, so the toast just sits near the bottom */
+[data-shape="desktop"] .toast-container.footer-visible {
+    bottom: var(--space-4);
 }
 
 /* ==========================================
@@ -2505,7 +2515,7 @@ input:checked + .toggle-switch::before {
 
 .fab-menu {
     position: fixed;
-    bottom: calc(var(--footer-height) + var(--safe-area-bottom) + var(--space-4));
+    bottom: calc(var(--bottom-nav-space) + var(--space-2));
     right: var(--space-4);
     display: flex;
     flex-direction: column-reverse;
@@ -3184,7 +3194,6 @@ input:checked + .toggle-switch::before {
 
 .card-username {
     color: var(--color-text-secondary);
-    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -4359,54 +4368,21 @@ input:checked + .toggle-switch::before {
     user-select: none;
 }
 
-/* Show title bar only in desktop mode */
-body.desktop-mode .app-title-bar {
+/* Custom title bar (Electron frameless shell) — the element only exists when created */
+[data-platform="electron"] .app-title-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-/* Desktop mode layout - prevent body scroll, scroll only in pages */
-html.desktop-mode,
-body.desktop-mode {
-    height: 100vh;
-    overflow: hidden;
+/* Fixed overlays start below the custom title bar (--titlebar-height is 0 with a
+   native OS frame). The desktop fixed-frame scroll model and every top inset are
+   now handled by the platform variables in base.css / layout.css / platforms.css,
+   so none of the old body.desktop-mode height/margin hacks are needed. */
+[data-platform="electron"] .popup-overlay,
+[data-platform="electron"] .page-overlay {
+    top: var(--titlebar-height);
 }
-
-body.desktop-mode #app {
-    height: calc(100vh - 38px);
-    margin-top: 38px;
-    min-height: auto;
-    overflow: hidden;
-}
-
-body.desktop-mode .pages {
-    height: 100%;
-    overflow: hidden;
-}
-
-body.desktop-mode .page {
-    height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-body.desktop-mode .sidebar {
-    top: 38px;
-    height: calc(100vh - 38px);
-}
-
-body.desktop-mode .popup-overlay {
-    top: 38px;
-    height: calc(100vh - 38px);
-}
-
-body.desktop-mode .page-overlay {
-    top: 38px;
-    height: calc(100vh - 38px);
-}
-
-
 .app-title-bar-drag {
     flex: 1;
     display: flex;
@@ -4498,11 +4474,11 @@ body.desktop-mode .page-overlay {
     }
 
     .home-header .vault-label {
-        font-size: 10px;
+        font-size: 9px;
     }
 
     .home-header .vault-name {
-        font-size: var(--font-size-xs);
+        font-size: 11px;
     }
 
     .home-header .vault-arrow {
@@ -4512,8 +4488,8 @@ body.desktop-mode .page-overlay {
 
     /* Add new button - slightly smaller */
     .home-header .btn-add-new {
-        padding: var(--space-2);
-        font-size: var(--font-size-xs);
+        /* padding: var(--space-2); */
+        /* font-size: var(--font-size-xs); */
     }
 
     .home-header .btn-add-new svg {
@@ -4584,20 +4560,22 @@ body.desktop-mode .page-overlay {
    Offline Indicator
    ========================================== */
 
-/* Offline banner - shown at top when offline */
+/* Offline banner — fixed at top. Sits below the custom title bar (--titlebar-height)
+   and fills behind the notch on native (--safe-area-top); both are 0 in the browser. */
 .offline-banner {
     position: fixed;
-    top: 0;
+    top: var(--titlebar-height);
     left: 0;
     right: 0;
     background: var(--color-warning);
     color: #000;
     text-align: center;
     padding: var(--space-2) var(--space-4);
+    padding-top: calc(var(--space-2) + var(--safe-area-top));
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     z-index: var(--z-fixed);
-    transform: translateY(-100%);
+    transform: translateY(-150%);
     transition: transform var(--transition-normal);
     display: flex;
     align-items: center;
@@ -4614,30 +4592,14 @@ body.is-offline .offline-banner {
     transform: translateY(0);
 }
 
-/* Desktop mode: banner goes BELOW title bar, not above */
-body.desktop-mode .offline-banner {
-    top: 38px;
+/* Desktop sidebar shrinks from the top to clear the banner (one rule, all frames) */
+body.is-offline [data-shape="desktop"] .sidebar {
+    top: calc(var(--titlebar-height) + var(--offline-banner-height) + var(--safe-area-top));
 }
 
-/* Adjust layout when offline banner is shown */
-body.is-offline.desktop-mode .app-title-bar {
-    top: 0; /* Title bar stays at top in desktop mode */
-}
-
-/* Desktop sidebar: shrink from top without affecting bottom/footer */
-@media (min-width: 768px) {
-    body.is-offline .sidebar {
-        top: 36px;
-    }
-
-    body.is-offline.desktop-mode .sidebar {
-        top: 74px; /* 38px title bar + 36px offline banner */
-    }
-}
-
-/* Pages content: push down for banner */
+/* Content pushes down for the banner */
 body.is-offline .pages {
-    padding-top: 36px;
+    padding-top: var(--offline-banner-height);
 }
 
 

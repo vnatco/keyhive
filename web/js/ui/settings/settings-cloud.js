@@ -165,7 +165,7 @@ const SettingsCloud = {
                             </div>
                             <div class="settings-item-content">
                                 <span class="settings-item-label">Account Settings</span>
-                                <span class="settings-item-hint">Visit <a href="${Config.APP_URL}" target="_blank" style="color: var(--accent); text-decoration: none;">${Config.WEB_APP_DOMAIN}</a> to manage your account</span>
+                                <span class="settings-item-hint">Visit <a href="${Config.APP_URL}" target="_blank" style="color: var(--accent); text-decoration: none;">${Config.WEB_APP_DOMAIN}</a> to manage</span>
                             </div>
                             <svg class="settings-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
@@ -454,6 +454,21 @@ const SettingsCloud = {
                                 <span class="settings-item-hint">Sign out from all devices</span>
                             </div>
                         </div>
+                        <div class="settings-item clickable" id="lockVault">
+                            <div class="settings-item-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </div>
+                            <div class="settings-item-content">
+                                <span class="settings-item-label">Lock Vault</span>
+                                <span class="settings-item-hint">Lock now and return to unlock screen</span>
+                            </div>
+                            <svg class="settings-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
                     </div>
                     <p class="settings-section-note">
                         Session binding may cause issues if your IP changes frequently (mobile networks, VPNs).
@@ -619,6 +634,11 @@ const SettingsCloud = {
         // Recovery codes
         document.getElementById('recoveryCodes')?.addEventListener('click', () => {
             this.showRecoveryCodesPopup();
+        });
+
+        // Lock vault
+        document.getElementById('lockVault')?.addEventListener('click', () => {
+            if (typeof App !== 'undefined') App.lockVault();
         });
 
         // Initialize custom selects
@@ -798,15 +818,7 @@ const SettingsCloud = {
                         App.applyTheme(serverSettings.theme);
                     }
                 }
-                if (!localTimeout && serverSettings.session_timeout) {
-                    this.settings.session_timeout = serverSettings.session_timeout;
-                    localStorage.setItem('keyhive_session_timeout', serverSettings.session_timeout.toString());
-                    if (typeof SessionTimeout !== 'undefined') {
-                        SessionTimeout.setTimeout(serverSettings.session_timeout);
-                    }
-                }
-
-                // Merge server settings (keep local theme/timeout which may have been updated above)
+                // Merge server settings (keep local theme/timeout which are per-device)
                 this.settings = {
                     ...serverSettings,
                     theme: this.settings.theme,
@@ -1137,7 +1149,7 @@ const SettingsCloud = {
      */
     updateSettingsUI() {
         // Session timeout
-        this.setCustomSelectValue('sessionTimeoutSelect', this.settings.session_timeout || 15);
+        this.setCustomSelectValue('sessionTimeoutSelect', this.settings.session_timeout ?? 15);
 
         // Theme
         this.setCustomSelectValue('themeSelect', this.settings.theme || 'system');
@@ -1183,18 +1195,9 @@ const SettingsCloud = {
      * Saves to localStorage (device-specific) and server (global default)
      * @param {number} minutes
      */
-    async updateSessionTimeout(minutes) {
+    updateSessionTimeout(minutes) {
         this.settings.session_timeout = minutes;
         App.setSessionTimeout(minutes);
-
-        // Sync to server (global default for other devices) - skip in local/offline mode
-        if (!this.isOffline()) {
-            try {
-                await ApiClient.updateSettings({ session_timeout: minutes });
-            } catch (error) {
-                console.error('Failed to sync session timeout to server:', error);
-            }
-        }
     },
 
     /**
@@ -3203,6 +3206,15 @@ const SettingsCloud = {
                         </svg>
                         <span>${createdAt}</span>
                     </div>
+                    ${session.never_expires ? `
+                        <div class="session-meta-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <span>Stays signed in</span>
+                        </div>
+                    ` : ''}
                 </div>
                 ${!session.is_current ? `
                     <div class="session-actions">

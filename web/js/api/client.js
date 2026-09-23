@@ -15,6 +15,9 @@ const ApiClient = {
     refreshToken: null,
     deviceToken: null,
 
+    // In-flight refresh, shared by every caller (see refreshAccessToken)
+    _refreshPromise: null,
+
     /**
      * Check if running in a native app (Electron, Capacitor)
      * Native apps can't use HttpOnly cookies cross-origin, so they use Authorization headers.
@@ -36,9 +39,13 @@ const ApiClient = {
             this.isAuthenticated = localStorage.getItem('authenticated') === 'true';
             this.csrfToken = localStorage.getItem('csrf_token');
         } else {
-            // Browser: use sessionStorage (cleared when tab closes)
+            // Browser: the CSRF token is per-tab, but the "this browser has a
+            // session" hint must survive closing the browser - otherwise a cold
+            // start never even attempts a refresh and drops straight to the
+            // login screen, despite a perfectly valid refresh cookie. The hint
+            // is not a credential; the HttpOnly refresh cookie is.
             this.csrfToken = sessionStorage.getItem('csrf_token');
-            this.isAuthenticated = sessionStorage.getItem('authenticated') === 'true';
+            this.isAuthenticated = localStorage.getItem('authenticated') === 'true';
             // Clean up old localStorage device_token (migrated to HttpOnly cookie)
             localStorage.removeItem('device_token');
         }
@@ -95,12 +102,14 @@ const ApiClient = {
      */
     setAuthenticated(authenticated) {
         this.isAuthenticated = authenticated;
-        const storage = this.isNativeApp() ? localStorage : sessionStorage;
+        // localStorage on every platform: see init() - this flag has to outlive
+        // the tab so a cold start knows to try refreshing the session.
         if (authenticated) {
-            storage.setItem('authenticated', 'true');
+            localStorage.setItem('authenticated', 'true');
         } else {
-            storage.removeItem('authenticated');
+            localStorage.removeItem('authenticated');
         }
+        sessionStorage.removeItem('authenticated'); // legacy location
     },
 
     /**
@@ -148,6 +157,17 @@ const ApiClient = {
             headers['Authorization'] = `Bearer ${this.accessToken}`;
         }
 
+        // Tell the server this is an installed client (native app or
+        // home-screen PWA) so the session it creates never expires.
+        if (typeof Platform !== 'undefined' && Platform.isInstalledClient()) {
+            headers['X-Client-Type'] = 'app';
+        }
+
+        // Merge extra headers from options
+        if (options.headers) {
+            Object.assign(headers, options.headers);
+        }
+
         const config = {
             method,
             headers,
@@ -161,15 +181,41 @@ const ApiClient = {
         try {
             let response = await fetch(url, config);
 
-            // Handle 401 - try to refresh token
-            if (response.status === 401 && this.isAuthenticated && !options.isRefresh) {
+            // Handle 401 or 403 CSRF - try to refresh token.
+            //
+            // Installed clients always try, even without the local
+            // "authenticated" hint: iOS evicts script-writeable storage
+            // (localStorage) from an unused home-screen app after 7 days while
+            // the HttpOnly refresh cookie survives. Without this, that eviction
+            // alone forces a full email/password login.
+            const mayHaveSession = this.isAuthenticated ||
+                (typeof Platform !== 'undefined' && Platform.isInstalledClient());
+
+            const shouldRefresh = !options.isRefresh && mayHaveSession && (
+                response.status === 401 ||
+                (response.status === 403 && !options._csrfRetried)
+            );
+
+            if (shouldRefresh) {
                 const refreshed = await this.refreshAccessToken();
                 if (refreshed) {
-                    // Retry original request with new CSRF token
+                    // Retry original request with new tokens
                     if (this.csrfToken) {
                         headers['X-CSRF-Token'] = this.csrfToken;
                     }
+                    if (isNative && this.accessToken) {
+                        headers['Authorization'] = `Bearer ${this.accessToken}`;
+                    }
                     response = await fetch(url, { ...config, headers });
+
+                    // If retry also fails, session is broken — force logout
+                    if (response.status === 401 || response.status === 403) {
+                        if (!options.noLogout && typeof App !== 'undefined' && App.logout) {
+                            console.warn('[ApiClient] Retry after refresh still failed, logging out');
+                            App.logout();
+                        }
+                        throw new ApiError('Session expired', response.status);
+                    }
                 } else {
                     // Refresh failed — session is revoked, force logout
                     if (!options.noLogout && typeof App !== 'undefined' && App.logout) {
@@ -219,10 +265,33 @@ const ApiClient = {
     },
 
     /**
-     * Refresh access token
+     * Refresh access token.
+     *
+     * Single-flight: concurrent callers share one in-flight request. The server
+     * rotates the refresh token on every refresh, so firing N parallel refreshes
+     * with the same token meant the first won and the rest got
+     * "Session expired or revoked" - and logged the user out. This happens
+     * routinely when the app resumes and several requests 401 at once.
+     *
      * @returns {Promise<boolean>}
      */
     async refreshAccessToken() {
+        if (this._refreshPromise) {
+            return this._refreshPromise;
+        }
+
+        this._refreshPromise = this._doRefresh().finally(() => {
+            this._refreshPromise = null;
+        });
+
+        return this._refreshPromise;
+    },
+
+    /**
+     * @private - use refreshAccessToken()
+     * @returns {Promise<boolean>}
+     */
+    async _doRefresh() {
         try {
             // Native apps: send refresh_token in body (can't use cookies cross-origin)
             const body = this.isNativeApp() && this.refreshToken
@@ -235,6 +304,7 @@ const ApiClient = {
 
             if (response.success && response.data.csrf_token) {
                 this.setCsrfToken(response.data.csrf_token);
+                this.setAuthenticated(true);
                 return true;
             }
         } catch (error) {
@@ -262,6 +332,21 @@ const ApiClient = {
     },
 
     // ==================
+    // ==================
+    // Helpers
+    // ==================
+
+    /**
+     * Get native app headers for session-creating requests (login, 2FA verify)
+     * Sends X-User-Agent so the server records the correct device name
+     */
+    _nativeHeaders() {
+        if (!this.isNativeApp() || typeof Platform === 'undefined') return {};
+        const version = typeof Config !== 'undefined' ? Config.VERSION : '1.0.0';
+        return { 'X-User-Agent': `KeyHive/${version} (${Platform.getPlatform()})` };
+    },
+
+    // ==================
     // Auth endpoints
     // ==================
 
@@ -282,7 +367,7 @@ const ApiClient = {
             body.device_token = this.deviceToken;
         }
 
-        const response = await this.post('/auth/login', body);
+        const response = await this.post('/auth/login', body, { headers: this._nativeHeaders() });
         // Only set tokens if no 2FA required (trusted device or direct login)
         if (response.success && response.data.csrf_token && !response.data.requires_2fa) {
             this.setCsrfToken(response.data.csrf_token);
@@ -298,7 +383,7 @@ const ApiClient = {
             code,
             method,
             trust_device: trustDevice
-        });
+        }, { headers: this._nativeHeaders() });
         if (response.success && response.data.csrf_token) {
             this.setCsrfToken(response.data.csrf_token);
             this.setAuthenticated(true);

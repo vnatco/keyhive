@@ -16,11 +16,40 @@
     padding: var(--space-8) var(--space-6);
     background: var(--color-bg-primary);
     overflow-y: auto;
+    position: relative;
+}
+
+/* Honeycomb background */
+.honeycomb-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.honeycomb-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] .honeycomb-overlay {
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .auth-container {
     width: 100%;
     max-width: 400px;
+    position: relative;
+    z-index: 1;
 }
 
 .auth-header {
@@ -127,6 +156,8 @@
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     line-height: 2.2;
+    position: relative;
+    z-index: 1;
 }
 
 .auth-footer a {
@@ -148,7 +179,7 @@
 
 .auth-legal-links a {
     color: var(--color-text-muted);
-    text-decoration: underline;
+    /* text-decoration: underline; */
     text-underline-offset: 2px;
 }
 
@@ -160,13 +191,35 @@
     margin: 0 var(--space-1);
 }
 
+.auth-legal-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    padding: var(--space-3) var(--space-4);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    z-index: 1;
+    pointer-events: auto;
+}
+
+.auth-legal-fixed a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.auth-legal-fixed a:hover {
+    color: var(--color-accent);
+}
+
 .settings-legal-links {
     margin-top: var(--space-2);
 }
 
 .settings-legal-links a {
     color: var(--color-text-muted);
-    text-decoration: underline;
+    /* text-decoration: underline; */
     text-underline-offset: 2px;
 }
 
@@ -312,99 +365,87 @@
     margin-top: var(--space-2);
 }
 
-.auth-container-wide {
-    max-width: 600px;
-}
-
 /* Mode Selection */
+.mode-select-container {
+    max-width: 380px;
+}
+
 .mode-select-options {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-4);
-    margin-bottom: var(--space-4);
-}
-
-@media (max-width: 500px) {
-    .mode-select-options {
-        grid-template-columns: 1fr;
-    }
-}
-
-.mode-select-card {
     display: flex;
     flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+.mode-option {
+    display: flex;
     align-items: center;
-    text-align: center;
-    padding: var(--space-5);
+    gap: var(--space-4);
+    width: 100%;
+    padding: var(--space-4);
     background: var(--color-bg-secondary);
-    border: 2px solid var(--color-border);
+    border: 1.5px solid var(--color-border);
     border-radius: var(--radius-lg);
     cursor: pointer;
     transition: all 0.2s ease;
+    text-align: left;
+    font-family: var(--font-family);
+    color: var(--color-text-primary);
 }
 
-.mode-select-card:hover {
+.mode-option:hover {
     border-color: var(--color-accent);
     background: var(--color-bg-tertiary);
-    transform: translateY(-2px);
 }
 
-.mode-select-card:focus {
-    outline: none;
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px var(--color-accent-alpha);
+.mode-option:active {
+    transform: scale(0.98);
 }
 
-.mode-select-icon {
-    width: 48px;
-    height: 48px;
-    margin-bottom: var(--space-3);
+.mode-option-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mode-option-icon svg {
+    width: 22px;
+    height: 22px;
     color: var(--color-accent);
 }
 
-.mode-select-icon svg {
-    width: 100%;
-    height: 100%;
+.mode-option-text {
+    flex: 1;
+    min-width: 0;
 }
 
-.mode-select-title {
-    font-size: var(--font-size-lg);
-    font-weight: 600;
+.mode-option-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text-primary);
-    margin-bottom: var(--space-2);
+    margin-bottom: 2px;
 }
 
-.mode-select-desc {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
-    margin-bottom: var(--space-3);
-    line-height: 1.5;
-}
-
-.mode-select-features {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    text-align: left;
-    width: 100%;
-}
-
-.mode-select-features li {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+.mode-option-desc {
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
-    padding: var(--space-1) 0;
+    line-height: 1.4;
 }
 
-.mode-select-features li::before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    background: var(--color-accent);
-    border-radius: 50%;
+.mode-option-arrow {
+    width: 18px;
+    height: 18px;
+    color: var(--color-text-muted);
     flex-shrink: 0;
+}
+
+.mode-option:hover .mode-option-arrow {
+    color: var(--color-accent);
 }
 
 .mode-select-footer {
@@ -825,10 +866,26 @@
 .page-overlay > .page-content {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding: 0;
 }
 
 .page-container {
-    /* padding: var(--space-4); */
+    padding: var(--space-4);
+}
+
+/* Full-screen card page header (view/edit): sticks to the top and clears the notch.
+   The overlay is a fixed layer over #app, so it carries its own safe-area top inset. */
+.page-overlay .view-header,
+.page-overlay .edit-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-top: calc(var(--safe-area-top) + var(--space-2));
+    /* Colored bottom buffer (part of the sticky header) so content doesn't touch the title
+       when it scrolls underneath. Replaces the header's transparent margin-bottom. */
+    padding-bottom: var(--space-5);
+    margin-bottom: 0;
+    background: var(--color-bg-primary);
 }
 
 /* Edit Header (inside page-content) */
@@ -871,14 +928,12 @@
     color: var(--color-text-primary);
 }
 
-@media (min-width: 768px) {
-    .page-overlay {
-        left: var(--sidebar-width);
-    }
+[data-shape="desktop"] .page-overlay {
+    left: var(--sidebar-width);
+}
 
-    .page-container {
-        padding: var(--space-6);
-    }
+[data-shape="desktop"] .page-container {
+    padding: var(--space-6);
 }
 
 /* ==========================================

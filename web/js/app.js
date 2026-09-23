@@ -729,6 +729,13 @@ const App = {
             throw new Error(response.message || 'Login failed');
         }
 
+        // Successful email+password login — always clear biometrics
+        // Credentials belong to whatever account was previously active
+        if (typeof Biometric !== 'undefined' && Biometric.isAvailable()) {
+            await Biometric.disable();
+            localStorage.removeItem('keyhive_biometric_prompted');
+        }
+
         if (response.data.requires_2fa) {
             // Store 2FA state
             this.state.twoFA = {
@@ -1750,12 +1757,7 @@ const App = {
                     localStorage.setItem('keyhive_theme', serverSettings.theme);
                     this.applyTheme(serverSettings.theme);
                 }
-                if (!localTimeout && serverSettings.session_timeout) {
-                    localStorage.setItem('keyhive_session_timeout', serverSettings.session_timeout.toString());
-                    if (typeof SessionTimeout !== 'undefined') {
-                        SessionTimeout.setTimeout(serverSettings.session_timeout);
-                    }
-                }
+                // session_timeout is per-device only (localStorage), not synced from server
 
                 // Always cache avatar in IndexedDB for sidebar display
                 if (typeof LocalDB !== 'undefined') {
@@ -2123,22 +2125,23 @@ const App = {
     },
 
     /**
-     * Check if user should be prompted to enable biometric unlock
-     * Only shows once per install (tracked via LocalDB flag)
+     * Check biometric account on fresh login (before showing unlock screen).
+     * Compares the logged-in user against stored biometric account.
+     * If different, resets biometrics so stale credentials don't show on unlock screen.
+     */
+    /**
+     * Check if user should be prompted to enable biometric unlock.
+     * Biometrics are already cleared on login and mode switch — this just handles the prompt.
      * @param {string} masterPassword
      */
     async checkBiometricPrompt(masterPassword) {
-        if (typeof Biometric === 'undefined' || !Biometric.isAvailable() || Biometric.isEnabled()) return;
+        if (typeof Biometric === 'undefined' || !Biometric.isAvailable()) return;
 
-        // Check if we already prompted the user
-        try {
-            if (typeof LocalDB !== 'undefined' && LocalDB.db) {
-                const prompted = await LocalDB.getUserDataValue('biometric_prompt_shown');
-                if (prompted) return;
-            }
-        } catch (e) {
-            return;
-        }
+        // Already enabled — nothing to do
+        if (Biometric.isEnabled()) return;
+
+        // Already prompted (and user declined) — don't nag
+        if (Biometric.wasPrompted()) return;
 
         // Wait for any other prompts (2FA) to clear
         setTimeout(async () => {
@@ -2184,12 +2187,7 @@ const App = {
                     text: 'Not Now',
                     type: 'secondary',
                     onClick: async () => {
-                        // Mark as shown so we don't ask again
-                        try {
-                            if (typeof LocalDB !== 'undefined') {
-                                await LocalDB.setUserDataValue('biometric_prompt_shown', true);
-                            }
-                        } catch (e) { /* ignore */ }
+                        Biometric.setPrompted();
                         return true;
                     }
                 },
@@ -2199,9 +2197,9 @@ const App = {
                     onClick: async () => {
                         try {
                             await Biometric.enable(masterPassword);
-                            if (typeof LocalDB !== 'undefined') {
-                                await LocalDB.setUserDataValue('biometric_prompt_shown', true);
-                            }
+                            // Sync the settings toggle if visible
+                            const toggle = document.getElementById('biometricToggle');
+                            if (toggle) toggle.checked = true;
                             Toast.success('Biometric unlock enabled');
                         } catch (e) {
                             Toast.error('Failed to enable biometric unlock');
@@ -2219,8 +2217,10 @@ const App = {
      * Initialize session timeout
      */
     initSessionTimeout() {
+        const saved = localStorage.getItem('keyhive_session_timeout');
+        const timeout = saved !== null ? parseInt(saved, 10) : 15;
         SessionTimeout.init({
-            timeout: 15, // Default 15 minutes
+            timeout: timeout,
             onWarning: (seconds) => {
                 this.showWarning(`Session will lock in ${seconds} seconds`);
             },
@@ -2242,6 +2242,7 @@ const App = {
 
         this.closeAllOverlaysForce();
         this.state.isUnlocked = false;
+        if (typeof Biometric !== 'undefined') Biometric.suppressAutoUnlock();
         await Vault.lock();
         this.showView('unlock');
     },
@@ -2252,10 +2253,9 @@ const App = {
     async logout() {
         const isLocalMode = this.state.isLocalMode || localStorage.getItem('keyhive_mode') === 'local';
 
-        // Clear biometric data (stored password in secure storage)
-        if (typeof Biometric !== 'undefined') {
-            await Biometric.disable();
-        }
+        // Biometric credentials persist across logout — only reset on account change
+        // (handled by Biometric.checkAccountChanged() on next unlock)
+        if (typeof Biometric !== 'undefined') Biometric.suppressAutoUnlock();
 
         // Lock crypto (clear derived keys)
         if (typeof CryptoAPI !== 'undefined') {
@@ -2704,7 +2704,7 @@ const App = {
         // Hide vault UI
         this.hideVaultUI();
 
-        // Re-initialize biometric before unlock (LocalDB is ready by now)
+        // Re-initialize biometric before unlock (reads state from localStorage — always instant)
         if (view === 'unlock' && typeof Biometric !== 'undefined') {
             try { await Biometric.init(); } catch (e) { /* ignore */ }
         }

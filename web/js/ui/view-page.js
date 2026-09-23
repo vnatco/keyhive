@@ -209,22 +209,34 @@ const ViewPage = {
 
         const displayUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
+        const safeUrl = Utils.escapeHtml(Utils.sanitizeUrl(url));
+
+        // Password cards: URL gets a copy button (like every other field) plus the open action.
+        // The website ("site") card type uses renderLinkField and is intentionally left unchanged.
         return `
-            <a href="${Utils.escapeHtml(Utils.sanitizeUrl(url))}" class="view-compact-field view-compact-website" target="_blank" rel="noopener">
+            <div class="view-compact-field view-compact-website">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="2" y1="12" x2="22" y2="12"></line>
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                 </svg>
-                <span class="view-compact-value view-compact-link">${Utils.escapeHtml(displayUrl)}</span>
-                <div class="view-compact-action">
-                    <svg class="view-compact-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                    </svg>
+                <a href="${safeUrl}" class="view-compact-value view-compact-link" target="_blank" rel="noopener" title="Open">${Utils.escapeHtml(displayUrl)}</a>
+                <div class="view-compact-actions">
+                    <a href="${safeUrl}" class="view-compact-action" target="_blank" rel="noopener" title="Open">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                    <button class="view-compact-copy" data-copy="${Utils.escapeHtml(url)}" title="Copy">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
                 </div>
-            </a>
+            </div>
         `;
     },
 

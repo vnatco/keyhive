@@ -276,11 +276,10 @@ const Popup = {
             document.body.appendChild(popup);
             requestAnimationFrame(() => popup.classList.add('active'));
 
-            // Focus input if present
+            // Focus input if present (delay for animation/mobile keyboard)
             const input = popup.querySelector('#popupInput');
             if (input) {
-                input.focus();
-                input.select();
+                setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 100);
             }
 
             // Close function

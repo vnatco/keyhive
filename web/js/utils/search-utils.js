@@ -27,7 +27,7 @@ const SearchUtils = {
         const email = (data.email || '').toLowerCase();
         const websiteUrl = (data.website_url || '').toLowerCase();
         const content = (data.content || '').toLowerCase();
-        const tags = data.tags || [];
+        const tags = Array.isArray(data.tags) ? data.tags : [];
         const tagsMatch = tags.some(tag => tag.toLowerCase().includes(query));
 
         return name.includes(query) ||

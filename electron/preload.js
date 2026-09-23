@@ -31,6 +31,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     window.dispatchEvent(new CustomEvent('desktop-mode-init', {
-        detail: { platform: 'electron', settings }
+        detail: { platform: 'electron', settings, nativeTitleBar: process.platform === 'linux' }
     }));
 });

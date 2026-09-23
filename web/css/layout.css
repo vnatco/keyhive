@@ -12,6 +12,8 @@
     display: flex;
     flex-direction: column;
     background-color: var(--color-bg-primary);
+    /* Unified top inset: status bar/notch (native) + custom title bar (electron). 0 on web. */
+    padding-top: calc(var(--safe-area-top) + var(--titlebar-height));
 }
 
 /* ==========================================
@@ -22,7 +24,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding-bottom: calc(var(--footer-height) + var(--safe-area-bottom));
+    /* Reserve space for the current shape's bottom nav (bar / pill / none),
+       plus a scroll gutter so the last item clears the nav comfortably */
+    padding-bottom: calc(var(--bottom-nav-space) + var(--space-6));
 }
 
 .page {
@@ -38,47 +42,26 @@
 .page-content {
     flex: 1;
     padding: var(--space-4);
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ==========================================
-   MOBILE LAYOUT (default)
+   SHAPE SWAP — driven by <html data-shape>, set by Platform.
+   mobile  → floating bottom nav, no sidebar
+   desktop → sidebar, no nav
    ========================================== */
 
-/* Mobile: Show footer, hide sidebar */
-.sidebar {
-    display: none;
-}
+[data-shape="mobile"] .sidebar { display: none; }
+[data-shape="mobile"] .footer  { display: flex; }
 
-.footer {
-    display: flex;
-}
-
-/* ==========================================
-   DESKTOP LAYOUT (768px+)
-   ========================================== */
-
-@media (min-width: 768px) {
-    /* Desktop: Show sidebar, hide footer */
-    .sidebar {
-        display: flex;
-    }
-
-    .footer {
-        display: none !important;
-    }
-
-    .pages {
-        margin-left: var(--sidebar-width);
-        padding-top: 0;
-        padding-bottom: 0;
-    }
-
-    .page-content {
-        padding: var(--space-6);
-        max-width: 800px;
-        margin: 0 auto;
-        width: 100%;
-    }
+[data-shape="desktop"] .sidebar { display: flex; }
+[data-shape="desktop"] .footer  { display: none !important; }
+[data-shape="desktop"] .pages   { margin-left: var(--sidebar-width); padding-bottom: 0; }
+[data-shape="desktop"] .page-content {
+    padding: var(--space-6);
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 /* ==========================================
@@ -88,7 +71,7 @@
 .sidebar {
     position: fixed;
     left: 0;
-    top: 0;
+    top: var(--titlebar-height);
     bottom: 0;
     width: var(--sidebar-width);
     background: var(--color-bg-secondary);
@@ -137,6 +120,21 @@
     font-family: var(--font-family);
     color: var(--color-text-primary);
     transition: background var(--transition-fast);
+    gap: var(--space-2);
+}
+
+.vault-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.vault-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .vault-selector:hover {
@@ -347,6 +345,8 @@
 /* Sidebar Navigation */
 .sidebar-nav {
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     padding: var(--space-4);
     display: flex;
     flex-direction: column;
@@ -467,7 +467,8 @@
 }
 
 /* ==========================================
-   Footer (Mobile)
+   Bottom Nav — DEFAULT is the edge-to-edge bar (narrow browser + any non-native
+   mobile shape). Native iOS/Android override this to a floating pill in platforms.css.
    ========================================== */
 
 .footer {
@@ -475,8 +476,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: calc(var(--footer-height) + var(--safe-area-bottom));
-    padding-bottom: var(--safe-area-bottom);
+    height: var(--footer-height);
     background: var(--color-bg-secondary);
     border-top: 1px solid var(--color-border-light);
     align-items: center;

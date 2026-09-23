@@ -87,6 +87,7 @@ const HomePage = {
             <div class="home-header">
                 <div class="sidebar-vault">
                     <button class="vault-selector" id="homeVaultSelector">
+                        <div class="vault-avatar" id="homeVaultAvatar" style="display:none;"></div>
                         <div class="vault-info">
                             <span class="vault-label">Current Vault</span>
                             <span class="vault-name" id="homeVaultName">${Utils.escapeHtml(currentVault?.name || 'My Vault')}</span>
@@ -413,8 +414,8 @@ const HomePage = {
             // Skip if typing in another input/textarea, or using modifier keys
             if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
             if (e.ctrlKey || e.metaKey || e.altKey) return;
-            // Skip non-printable keys
-            if (e.key.length !== 1) return;
+            // Skip non-printable keys (except Backspace)
+            if (e.key.length !== 1 && e.key !== 'Backspace') return;
             // Skip if a popup is open
             if (document.querySelector('.popup-overlay.active')) return;
             input.focus();
@@ -568,6 +569,38 @@ const HomePage = {
         if (nameEl && this.currentVault) {
             nameEl.textContent = this.currentVault.name || 'My Vault';
         }
+        this.updateVaultAvatar();
+    },
+
+    /**
+     * Show user avatar in vault selector when:
+     * 1. User has an avatar  2. Default vault is selected  3. Sidebar is hidden (mobile)
+     */
+    async updateVaultAvatar() {
+        const el = document.getElementById('homeVaultAvatar');
+        if (!el) return;
+
+        const isMobile = window.innerWidth < 768;
+        const isDefault = !!this.currentVault?.is_default;
+
+        if (!isMobile || !isDefault) {
+            el.style.display = 'none';
+            return;
+        }
+
+        try {
+            const avatar = typeof LocalDB !== 'undefined' ? await LocalDB.getUserAvatar() : null;
+            if (avatar) {
+                const src = Utils.sanitizeImageSrc(`data:image/png;base64,${avatar}`);
+                if (src) {
+                    el.innerHTML = `<img src="${src}" alt="" class="vault-avatar-img">`;
+                    el.style.display = '';
+                    return;
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        el.style.display = 'none';
     },
 
     /**
@@ -1906,7 +1939,7 @@ const HomePage = {
                 </div>
                 <div class="card-info">
                     <span class="card-name totp-code ${isExpiring ? 'blink' : ''}">--- ---</span>
-                    ${subtitle ? `<span class="card-subtitle">${Utils.escapeHtml(subtitle)}</span>` : ''}
+                    ${subtitle ? `<span class="card-subtitle"><span class="card-username">${Utils.escapeHtml(subtitle)}</span></span>` : ''}
                 </div>
                 <div class="card-actions">
                     <button class="card-action-btn card-copy" data-action="copy" title="Copy Code">
@@ -1937,7 +1970,7 @@ const HomePage = {
                 </div>
                 <div class="card-info">
                     <span class="card-name">${Utils.escapeHtml(label)}</span>
-                    ${preview ? `<span class="card-subtitle card-preview">${Utils.escapeHtml(preview)}</span>` : ''}
+                    ${preview ? `<span class="card-subtitle card-preview"><span class="card-username">${Utils.escapeHtml(preview)}</span></span>` : ''}
                 </div>
                 <div class="card-actions">
                     <button class="card-action-btn card-copy" data-action="copy" title="Copy Note">
@@ -1973,7 +2006,7 @@ const HomePage = {
                 </div>
                 <div class="card-info">
                     <span class="card-name">${Utils.escapeHtml(label)}</span>
-                    ${website ? `<span class="card-subtitle">${Utils.escapeHtml(this.formatUrl(website))}</span>` : ''}
+                    ${website ? `<span class="card-subtitle"><span class="card-username">${Utils.escapeHtml(this.formatUrl(website))}</span></span>` : ''}
                 </div>
                 <div class="card-actions">
                     <button class="card-action-btn" data-action="open-link" title="Open Website">
@@ -2005,7 +2038,7 @@ const HomePage = {
                 </div>
                 <div class="card-info">
                     <span class="card-name">${Utils.escapeHtml(name)}</span>
-                    <span class="card-subtitle">${subtitle}</span>
+                    <span class="card-subtitle"><span class="card-username">${subtitle}</span></span>
                 </div>
                 <div class="card-actions">
                     <button class="card-action-btn" data-action="download" title="Download">
@@ -2533,13 +2566,14 @@ const HomePage = {
             sort_order: index
         }));
 
-        // Update local items array order
+        // Update local items array order and sort_order field
         const orderMap = new Map(newOrder.map(item => [item.id, item.sort_order]));
-        this.items.sort((a, b) => {
-            const orderA = orderMap.has(a.id) ? orderMap.get(a.id) : 999;
-            const orderB = orderMap.has(b.id) ? orderMap.get(b.id) : 999;
-            return orderA - orderB;
-        });
+        for (const item of this.items) {
+            if (orderMap.has(item.id)) {
+                item.sort_order = orderMap.get(item.id);
+            }
+        }
+        this.items.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
         // Save to vault
         try {
@@ -2663,8 +2697,7 @@ const HomePage = {
         if (!grid) return;
 
         const folders = Array.from(grid.querySelectorAll('.folder-card'));
-        const folderIndex = folders.indexOf(folderEl);
-        if (folderIndex === -1) return;
+        if (folders.indexOf(folderEl) === -1) return;
 
         this.folderDragState.isDragging = true;
         this.folderDragState.draggedFolder = folderEl;
@@ -2674,13 +2707,15 @@ const HomePage = {
         this.folderDragState.offsetX = clientX - rect.left;
         this.folderDragState.offsetY = clientY - rect.top;
 
-        // Create placeholder
-        this.folderDragState.placeholder = document.createElement('div');
-        this.folderDragState.placeholder.className = 'folder-placeholder';
-        this.folderDragState.placeholder.style.width = rect.width + 'px';
-        this.folderDragState.placeholder.style.height = rect.height + 'px';
+        // Create placeholder in the grid where the folder was
+        const placeholder = document.createElement('div');
+        placeholder.className = 'folder-placeholder';
+        placeholder.style.width = rect.width + 'px';
+        placeholder.style.height = rect.height + 'px';
+        this.folderDragState.placeholder = placeholder;
+        folderEl.parentNode.insertBefore(placeholder, folderEl);
 
-        // Style dragged folder
+        // Move dragged folder to body so it's outside grid flow entirely
         folderEl.classList.add('dragging');
         folderEl.style.width = rect.width + 'px';
         folderEl.style.height = rect.height + 'px';
@@ -2689,8 +2724,14 @@ const HomePage = {
         folderEl.style.left = rect.left + 'px';
         folderEl.style.zIndex = '9999';
         folderEl.style.pointerEvents = 'none';
+        document.body.appendChild(folderEl);
 
-        folderEl.parentNode.insertBefore(this.folderDragState.placeholder, folderEl);
+        // Snapshot stable positions of all remaining folder cards (excluding placeholder)
+        this.folderDragState.slots = Array.from(grid.querySelectorAll('.folder-card')).map(f => {
+            const r = f.getBoundingClientRect();
+            return { element: f, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+        });
+
         grid.classList.add('is-dragging');
         document.body.style.userSelect = 'none';
     },
@@ -2705,64 +2746,35 @@ const HomePage = {
         const placeholder = this.folderDragState.placeholder;
         const grid = document.getElementById('foldersGrid');
 
-        // Move the dragged folder with cursor
+        // Move the dragged element with cursor
         folder.style.top = (clientY - this.folderDragState.offsetY) + 'px';
         folder.style.left = (clientX - this.folderDragState.offsetX) + 'px';
 
-        const folders = Array.from(grid.querySelectorAll('.folder-card:not(.dragging)'));
-        if (folders.length === 0) return;
+        // Find closest slot by distance to cursor
+        const slots = this.folderDragState.slots;
+        if (!slots || slots.length === 0) return;
 
-        // Get positions of all folders
-        const positions = folders.map(f => {
-            const rect = f.getBoundingClientRect();
-            return {
-                element: f,
-                left: rect.left,
-                right: rect.right,
-                top: rect.top,
-                bottom: rect.bottom,
-                centerX: rect.left + rect.width / 2,
-                centerY: rect.top + rect.height / 2
-            };
-        });
-
-        // Find the best insertion point
-        let insertBefore = null;
-
-        // First, find folders on the same row as cursor (within vertical bounds)
-        const sameRowFolders = positions
-            .filter(p => clientY >= p.top - 10 && clientY <= p.bottom + 10)
-            .sort((a, b) => a.left - b.left); // Sort by X position (left to right)
-
-        if (sameRowFolders.length > 0) {
-            // On the same row - find by horizontal position
-            for (const pos of sameRowFolders) {
-                if (clientX < pos.centerX) {
-                    insertBefore = pos.element;
-                    break;
-                }
-            }
-            // If cursor is after all folders on this row, insertBefore stays null (append)
-        } else {
-            // Not on any row - find the first folder that starts below cursor
-            for (const pos of positions) {
-                if (pos.top > clientY) {
-                    insertBefore = pos.element;
-                    break;
-                }
+        let closest = null;
+        let closestDist = Infinity;
+        for (const slot of slots) {
+            const dx = clientX - slot.cx;
+            const dy = clientY - slot.cy;
+            const dist = dx * dx + dy * dy;
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = slot;
             }
         }
 
-        // Move placeholder
-        if (insertBefore) {
-            if (placeholder.nextSibling !== insertBefore) {
-                grid.insertBefore(placeholder, insertBefore);
-            }
-        } else {
-            // Append to end
-            if (placeholder !== grid.lastElementChild) {
-                grid.appendChild(placeholder);
-            }
+        if (!closest) return;
+
+        // Insert placeholder before or after the closest element based on cursor position
+        const insertBefore = clientX < closest.cx || clientY < closest.cy - 20
+            ? closest.element
+            : closest.element.nextSibling;
+
+        if (insertBefore !== placeholder && insertBefore !== placeholder.nextSibling) {
+            grid.insertBefore(placeholder, insertBefore);
         }
     },
 
@@ -2782,6 +2794,7 @@ const HomePage = {
         const grid = document.getElementById('foldersGrid');
 
         if (folder && placeholder && grid) {
+            // Move folder back from body into grid at placeholder position
             folder.classList.remove('dragging');
             folder.style.position = '';
             folder.style.top = '';
@@ -2797,7 +2810,6 @@ const HomePage = {
 
             this.saveFolderOrder();
             this.folderDragState.justDragged = true;
-            // Clear justDragged flag after a short delay
             setTimeout(() => {
                 this.folderDragState.justDragged = false;
             }, 300);
@@ -2807,6 +2819,7 @@ const HomePage = {
         this.folderDragState.draggedFolder = null;
         this.folderDragState.draggedFolderId = null;
         this.folderDragState.placeholder = null;
+        this.folderDragState.slots = null;
         document.body.style.userSelect = '';
     },
 
@@ -2823,13 +2836,14 @@ const HomePage = {
             sort_order: index
         }));
 
-        // Update local folders array order
+        // Update local folders array order and sort_order field
         const orderMap = new Map(newOrder.map(item => [item.id, item.sort_order]));
-        this.folders.sort((a, b) => {
-            const orderA = orderMap.has(a.id) ? orderMap.get(a.id) : 999;
-            const orderB = orderMap.has(b.id) ? orderMap.get(b.id) : 999;
-            return orderA - orderB;
-        });
+        for (const folder of this.folders) {
+            if (orderMap.has(folder.id)) {
+                folder.sort_order = orderMap.get(folder.id);
+            }
+        }
+        this.folders.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
         try {
             if (typeof Vault !== 'undefined' && Vault.updateFoldersOrder) {

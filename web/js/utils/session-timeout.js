@@ -16,7 +16,7 @@ const SessionTimeout = {
      * @param {Object} options
      */
     init(options = {}) {
-        this.timeout = (options.timeout || 15) * 60 * 1000;
+        this.timeout = (options.timeout != null ? options.timeout : 15) * 60 * 1000;
         this.warningCallback = options.onWarning || null;
         this.lockCallback = options.onLock || null;
 

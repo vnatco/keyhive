@@ -76,9 +76,9 @@ const SettingsLocal = {
 
         return `
             <div class="settings-page" id="settingsPage">
-                <!-- Profile Section -->
+                <!-- Account Section -->
                 <section class="settings-section">
-                    <h2 class="settings-section-title">Profile</h2>
+                    <h2 class="settings-section-title">Account</h2>
                     <div class="settings-card">
                         <div class="settings-item clickable" id="changeVaultName">
                             <div class="settings-item-icon ${this.userAvatar ? 'has-avatar' : ''}" id="profileIcon">
@@ -97,39 +97,6 @@ const SettingsLocal = {
                             <svg class="settings-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
-                        </div>
-                        <div class="settings-item has-dropdown">
-                            <div class="settings-item-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="5"></circle>
-                                    <line x1="12" y1="1" x2="12" y2="3"></line>
-                                    <line x1="12" y1="21" x2="12" y2="23"></line>
-                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                                    <line x1="1" y1="12" x2="3" y2="12"></line>
-                                    <line x1="21" y1="12" x2="23" y2="12"></line>
-                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                                </svg>
-                            </div>
-                            <div class="settings-item-content">
-                                <span class="settings-item-label">Appearance</span>
-                                <span class="settings-item-hint">Choose your theme</span>
-                            </div>
-                            <div class="custom-select" id="themeSelect" data-value="${this.settings.theme}">
-                                <button class="custom-select-trigger" type="button">
-                                    <span class="custom-select-value">${this.getThemeLabel(this.settings.theme)}</span>
-                                    <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="6 9 12 15 18 9"></polyline>
-                                    </svg>
-                                </button>
-                                <div class="custom-select-dropdown">
-                                    <button class="custom-select-option ${this.settings.theme === 'dark' ? 'active' : ''}" data-value="dark">Dark</button>
-                                    <button class="custom-select-option ${this.settings.theme === 'midnight' ? 'active' : ''}" data-value="midnight">Midnight</button>
-                                    <button class="custom-select-option ${this.settings.theme === 'light' ? 'active' : ''}" data-value="light">Light</button>
-                                    <button class="custom-select-option ${this.settings.theme === 'system' ? 'active' : ''}" data-value="system">System</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -278,9 +245,9 @@ const SettingsLocal = {
                     </div>
                 </section>
 
-                <!-- Sessions Section -->
+                <!-- Preferences Section -->
                 <section class="settings-section">
-                    <h2 class="settings-section-title">Session</h2>
+                    <h2 class="settings-section-title">Preferences</h2>
                     <div class="settings-card">
                         <div class="settings-item has-dropdown">
                             <div class="settings-item-icon">
@@ -310,6 +277,46 @@ const SettingsLocal = {
                                 </div>
                             </div>
                         </div>
+                        <div class="settings-item has-dropdown">
+                            <div class="settings-item-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="5"></circle>
+                                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                                </svg>
+                            </div>
+                            <div class="settings-item-content">
+                                <span class="settings-item-label">Appearance</span>
+                                <span class="settings-item-hint">Choose your theme</span>
+                            </div>
+                            <div class="custom-select" id="themeSelect" data-value="${this.settings.theme}">
+                                <button class="custom-select-trigger" type="button">
+                                    <span class="custom-select-value">${this.getThemeLabel(this.settings.theme)}</span>
+                                    <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="custom-select-dropdown">
+                                    <button class="custom-select-option ${this.settings.theme === 'dark' ? 'active' : ''}" data-value="dark">Dark</button>
+                                    <button class="custom-select-option ${this.settings.theme === 'midnight' ? 'active' : ''}" data-value="midnight">Midnight</button>
+                                    <button class="custom-select-option ${this.settings.theme === 'light' ? 'active' : ''}" data-value="light">Light</button>
+                                    <button class="custom-select-option ${this.settings.theme === 'system' ? 'active' : ''}" data-value="system">System</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Session Section -->
+                <section class="settings-section">
+                    <h2 class="settings-section-title">Session</h2>
+                    <div class="settings-card">
                         <div class="settings-item clickable" id="lockVault">
                             <div class="settings-item-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -378,13 +385,8 @@ const SettingsLocal = {
         this.initCustomSelects();
 
         // Lock vault
-        document.getElementById('lockVault')?.addEventListener('click', async () => {
-            if (typeof CryptoAPI !== 'undefined') await CryptoAPI.lock();
-            if (typeof Vault !== 'undefined') Vault.isUnlocked = false;
-            if (typeof App !== 'undefined') {
-                App.state.isUnlocked = false;
-                App.showView('unlock');
-            }
+        document.getElementById('lockVault')?.addEventListener('click', () => {
+            if (typeof App !== 'undefined') App.lockVault();
         });
 
         // Switch account (logout for local)

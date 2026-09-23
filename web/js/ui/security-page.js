@@ -284,9 +284,12 @@ const SecurityPage = {
                 const data = item.data || {};
                 const password = data.password || '';
 
+                // Skip items with no password
+                if (!password) continue;
+
                 // Calculate score using SecurityAnalyzer.getScore() (1-10 scale)
                 let score = 1;
-                if (password && typeof SecurityAnalyzer !== 'undefined') {
+                if (typeof SecurityAnalyzer !== 'undefined') {
                     score = SecurityAnalyzer.getScore(password);
                 }
 

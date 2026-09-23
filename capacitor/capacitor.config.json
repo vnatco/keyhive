@@ -1,5 +1,5 @@
 {
-  "appId": "app.keyhive.mobile",
+  "appId": "app.keyhive.vault",
   "appName": "KeyHive",
   "webDir": "www",
   "server": {
@@ -8,11 +8,8 @@
   },
   "ios": {
     "scheme": "KeyHive",
-    "allowsLinkPreview": false
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
   },
-  "plugins": {
-    "BiometricAuth": {
-      "androidTitle": "Unlock KeyHive"
-    }
-  }
+  "plugins": {}
 }

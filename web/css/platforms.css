@@ -1,0 +1,221 @@
+/**
+ * Platform overrides — native (iOS / Android) and desktop-app (Electron) specifics.
+ *
+ * Loaded LAST so these win on specificity ties. Everything keys off the
+ * data-platform contract set by Platform.applyPlatform(); there are NO more
+ * scattered `body.app-ios` / `desktop-mode` hacks. The shared, variable-driven
+ * insets (safe areas, title bar, floating nav) live in base.css + layout.css.
+ * This file only holds the "fixed app frame" scroll model and a few native-only
+ * paddings that have no meaning in the browser.
+ */
+
+/* ==========================================
+   Fixed app frame — native apps and the desktop app do NOT scroll as one page;
+   only .page-content scrolls internally (no full-page rubber-banding). The plain
+   browser keeps normal document scroll, so these rules never apply there.
+   ========================================== */
+
+:root[data-platform="ios"],
+:root[data-platform="android"],
+:root[data-platform="electron"] {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+[data-platform="ios"] body,
+[data-platform="android"] body,
+[data-platform="electron"] body {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+[data-platform="ios"] #app,
+[data-platform="android"] #app,
+[data-platform="electron"] #app {
+    height: 100dvh;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+[data-platform="ios"] .pages,
+[data-platform="android"] .pages,
+[data-platform="electron"] .pages {
+    overflow: hidden;
+    min-height: 0;
+}
+
+[data-platform="ios"] .page,
+[data-platform="android"] .page,
+[data-platform="electron"] .page {
+    min-height: 0;
+    overflow: hidden;
+}
+
+[data-platform="ios"] .page-content,
+[data-platform="android"] .page-content,
+[data-platform="electron"] .page-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+/* Scroll-under: the internal scroller reaches the screen bottom so the list scrolls
+   UNDER the translucent pill. The bottom gutter lives on the scroller's CONTENT — not
+   on .pages, which (being overflow:hidden here) would shrink the scroller and stop the
+   list above the pill. Scoped to `.pages .page-content` so the full-screen overlay
+   (which covers the pill) is unaffected. */
+[data-platform="ios"] .pages,
+[data-platform="android"] .pages {
+    padding-bottom: 0;
+}
+
+[data-platform="ios"] .pages .page-content,
+[data-platform="android"] .pages .page-content {
+    /* Content starts right at the safe-area line (where it slides under the status bar
+       on scroll) instead of an oversized top gap. */
+    padding-top: 0;
+    padding-bottom: calc(var(--bottom-nav-space) + var(--space-6));
+}
+
+/* ==========================================
+   Native mobile — auth screens & fullscreen popups honor the safe areas
+   ========================================== */
+
+/* Auth pages are fullscreen & vertically centered — cancel the #app top inset */
+[data-platform="ios"] #authContainer,
+[data-platform="android"] #authContainer {
+    margin-top: calc(-1 * var(--safe-area-top));
+}
+
+[data-platform="ios"] .auth-page,
+[data-platform="android"] .auth-page {
+    padding-top: var(--space-4);
+}
+
+/* Fullscreen popups clear the notch / home indicator */
+[data-platform="ios"] .popup-header,
+[data-platform="android"] .popup-header {
+    padding-top: calc(var(--space-4) + var(--safe-area-top));
+}
+
+[data-platform="ios"] .popup-footer,
+[data-platform="android"] .popup-footer {
+    padding-bottom: calc(var(--space-4) + var(--safe-area-bottom));
+}
+
+/* Add/edit/view overlay: the sticky header already carries the safe-area top inset,
+   so drop the container's extra top padding (it was doubling the top offset). */
+[data-platform="ios"] .page-overlay .page-container,
+[data-platform="android"] .page-overlay .page-container {
+    padding-top: 0;
+}
+
+/* (Overlay header top/bottom spacing is handled on the shared sticky rule in pages.css,
+   so it applies to web and native alike.) */
+
+/* ==========================================
+   Floating pill bottom nav — NATIVE mobile ONLY.
+   The browser (even when narrow) keeps the default edge-to-edge bar from layout.css.
+   ========================================== */
+
+[data-platform="ios"] .footer,
+[data-platform="android"] .footer {
+    left: 50%;
+    right: auto;
+    /* Float low into the home-indicator zone (see --nav-bottom); toasts + content track this. */
+    bottom: var(--nav-bottom);
+    transform: translateX(-50%);
+    height: var(--nav-height);
+    width: auto;
+    max-width: calc(100% - var(--space-6));
+    padding: 0 var(--space-2);
+    justify-content: center;
+    border-radius: var(--radius-full);
+    /* Liquid glass: translucent, heavily blurred, with a glass rim + top-edge sheen.
+       Theme-aware via color-mix; falls back to the opaque base .footer bg on old webviews. */
+    background: color-mix(in srgb, var(--color-bg-secondary) 68%, transparent);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    backdrop-filter: blur(30px) saturate(200%);
+    border: 1px solid color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.22),
+                inset 0 1px 0 color-mix(in srgb, white 30%, transparent);
+    /* Smoothly shrink/grow (e.g. when minimized on scroll — toggled via .nav-min) */
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.3s ease;
+}
+
+[data-platform="ios"] .tab-bar,
+[data-platform="android"] .tab-bar {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    gap: var(--space-1);
+}
+
+/* Icons only on the island */
+[data-platform="ios"] .tab-label,
+[data-platform="android"] .tab-label {
+    display: none;
+}
+
+[data-platform="ios"] .tab-item,
+[data-platform="android"] .tab-item {
+    position: relative;
+    width: 60px;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    /* Center the icon vertically within the full-height item */
+    justify-content: center;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Poppy rounded-squircle highlight behind the active icon (matches the island's rounding) */
+[data-platform="ios"] .tab-item::before,
+[data-platform="android"] .tab-item::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: var(--radius-lg);
+    background: var(--color-accent-bg);
+    opacity: 0;
+    transform: scale(0.4);
+    transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s ease;
+    z-index: 0;
+}
+
+[data-platform="ios"] .tab-item.active::before,
+[data-platform="android"] .tab-item.active::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+[data-platform="ios"] .tab-icon,
+[data-platform="android"] .tab-icon {
+    position: relative;
+    z-index: 1;
+    width: 26px;
+    height: 26px;
+    transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Icon pops when its tab becomes active */
+[data-platform="ios"] .tab-item.active .tab-icon,
+[data-platform="android"] .tab-item.active .tab-icon {
+    transform: scale(1.12);
+}
+
+/* Tactile press feedback */
+[data-platform="ios"] .tab-item:active,
+[data-platform="android"] .tab-item:active {
+    transform: scale(0.88);
+}
+
+/* Minimized state (shrinks while scrolling down; JS toggles .nav-min on .footer) */
+[data-platform="ios"] .footer.nav-min,
+[data-platform="android"] .footer.nav-min {
+    transform: translateX(-50%) scale(0.86);
+    opacity: 0.92;
+}

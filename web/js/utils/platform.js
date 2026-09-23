@@ -60,12 +60,17 @@ const Platform = {
             // Desktop mode will be fully activated when enableDesktopMode() is called
         }
 
+        // Apply the platform contract now (<html data-platform / data-shape>).
+        // For web this also wires a resize listener so the shape follows the viewport.
+        this.applyPlatform(this.platform);
+
         // Listen for desktop-mode-init event from Electron preload
         window.addEventListener('desktop-mode-init', (e) => {
-            const { platform: plat, settings } = e.detail;
+            const { platform: plat, settings, nativeTitleBar } = e.detail;
             this.enableDesktopMode({
                 platform: plat,
                 settings,
+                nativeTitleBar: !!nativeTitleBar,
                 ipc: {
                     minimize: () => window.electronAPI.minimize(),
                     close: () => window.electronAPI.close()
@@ -77,6 +82,46 @@ const Platform = {
                 }
             });
         });
+    },
+
+    // ===========================================
+    // Platform Contract — the single switch
+    // ===========================================
+
+    /**
+     * Apply the platform contract to <html>: sets data-platform and the derived
+     * data-shape. This is THE switch that gives the app its desktop / iOS / Android
+     * shape — every layout rule keys off these two attributes. Also callable
+     * manually (e.g. `AppFrame.applyPlatform('ios')` in the console) to preview a shape.
+     * @param {string} platform - 'ios' | 'android' | 'electron' | 'web'
+     */
+    applyPlatform(platform) {
+        this.platform = platform;
+        document.documentElement.dataset.platform = platform;
+        this._applyShape();
+
+        // On web the shape follows the viewport width; keep it in sync on resize.
+        if (platform === 'web' && !this._shapeMedia) {
+            this._shapeMedia = window.matchMedia('(min-width: 768px)');
+            this._shapeMedia.addEventListener('change', () => this._applyShape());
+        }
+    },
+
+    /**
+     * Derive and set <html data-shape="mobile|desktop">.
+     * Native mobile is always 'mobile'; desktop apps are always 'desktop';
+     * the browser follows the 768px breakpoint.
+     */
+    _applyShape() {
+        let shape;
+        if (this.platform === 'ios' || this.platform === 'android') {
+            shape = 'mobile';
+        } else if (this.isDesktopMode || this.platform === 'electron') {
+            shape = 'desktop';
+        } else {
+            shape = window.matchMedia('(min-width: 768px)').matches ? 'desktop' : 'mobile';
+        }
+        document.documentElement.dataset.shape = shape;
     },
 
     // ===========================================
@@ -125,6 +170,40 @@ const Platform = {
     },
 
     /**
+     * Running as an installed home-screen / standalone web app (PWA)?
+     *
+     * iOS reports this via navigator.standalone; everyone else via the
+     * display-mode media query. An installed PWA is NOT native - it still uses
+     * cookies - but the user thinks of it as "the app", and it gets the same
+     * never-expiring session.
+     * @returns {boolean}
+     */
+    isStandalone() {
+        try {
+            if (window.navigator.standalone === true) {
+                return true;
+            }
+            return window.matchMedia('(display-mode: standalone)').matches ||
+                   window.matchMedia('(display-mode: fullscreen)').matches ||
+                   window.matchMedia('(display-mode: minimal-ui)').matches;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    /**
+     * Is this an installed client (native app or installed PWA)?
+     *
+     * Installed clients get a session that never expires - the server is told
+     * via the X-Client-Type: app header. A regular browser tab gets the
+     * 30-day sliding session instead.
+     * @returns {boolean}
+     */
+    isInstalledClient() {
+        return this.isNative() || this.isStandalone();
+    },
+
+    /**
      * Get the OS-level platform string for server communication
      * @returns {string} 'windows' | 'mac' | 'linux' | 'ios' | 'android' | 'web'
      */
@@ -160,16 +239,20 @@ const Platform = {
         this.ipc = options.ipc || null;
         this.settings = options.settings || { shortcut: 'Ctrl+Alt+Z', runOnStartup: false };
         this.api = options.api || null;
+        this.nativeTitleBar = options.nativeTitleBar || false;
 
-        // Add desktop mode class to html and body
-        document.documentElement.classList.add('desktop-mode');
-        document.body.classList.add('desktop-mode');
+        // Apply the desktop platform contract (<html data-platform / data-shape="desktop">)
+        this.applyPlatform(this.platform);
 
-        // Create and inject title bar
-        this.createTitleBar();
-
-        // Remove sidebar header (redundant with title bar)
-        this.removeSidebarHeader();
+        // Create custom title bar only when there's no native frame
+        if (this.nativeTitleBar) {
+            // Native OS frame — no custom bar, so no title-bar inset
+            document.documentElement.dataset.titlebar = 'native';
+        } else {
+            this.createTitleBar();
+            // Remove sidebar header (redundant with title bar)
+            this.removeSidebarHeader();
+        }
 
         // Disable context menu in desktop mode (optional)
         if (options.disableContextMenu) {

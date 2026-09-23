@@ -1,6 +1,6 @@
 {
   "name": "keyhive",
-  "version": "1.3.6",
+  "version": "1.4.0",
   "description": "Zero-knowledge password manager with client-side encryption",
   "main": "main.js",
   "author": "KeyHive <contact@keyhive.app>",
@@ -47,7 +47,7 @@
       "category": "public.app-category.utilities"
     },
     "linux": {
-      "target": "AppImage",
+      "target": "deb",
       "icon": "icons",
       "category": "Utility"
     }

@@ -128,14 +128,22 @@ const AuthPages = {
         }
 
         container.style.display = 'block';
+        if (typeof Honeycomb !== 'undefined') Honeycomb.stop();
         container.innerHTML = this.getHTML();
         this.bindEvents();
+
+        // Start honeycomb background
+        if (typeof Honeycomb !== 'undefined') {
+            const authPage = container.querySelector('.auth-page');
+            if (authPage) Honeycomb.start(authPage);
+        }
     },
 
     /**
      * Hide auth pages
      */
     hide() {
+        if (typeof Honeycomb !== 'undefined') Honeycomb.stop();
         const container = document.getElementById('authContainer');
         if (container) {
             container.style.display = 'none';
@@ -184,7 +192,7 @@ const AuthPages = {
     getModeSelectHTML() {
         return `
             <div class="auth-page">
-                <div class="auth-container auth-container-wide">
+                <div class="auth-container mode-select-container">
                     <div class="auth-header">
                         <div class="auth-logo">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -193,49 +201,41 @@ const AuthPages = {
                             </svg>
                         </div>
 
-                        <h1 class="auth-title">Welcome to KeyHive</h1>
-                        <p class="auth-subtitle">Choose how you want to store your passwords</p>
+                        <h1 class="auth-title">KeyHive</h1>
+                        <p class="auth-subtitle">Choose how to store your passwords</p>
                     </div>
 
                     <div class="mode-select-options">
-                        <button type="button" class="mode-select-card" id="selectLocalMode">
-                            <div class="mode-select-icon">
+                        <button type="button" class="mode-option" id="selectLocalMode">
+                            <div class="mode-option-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
                                     <line x1="8" y1="21" x2="16" y2="21"></line>
                                     <line x1="12" y1="17" x2="12" y2="21"></line>
                                 </svg>
                             </div>
-                            <h3 class="mode-select-title">Local Storage</h3>
-                            <p class="mode-select-desc">
-                                Store passwords only on this device. No account needed.
-                                Data stays private and offline.
-                            </p>
-                            <ul class="mode-select-features">
-                                <li>No registration required</li>
-                                <li>Works offline</li>
-                                <li>Data never leaves your device</li>
-                                <li>No cloud sync</li>
-                            </ul>
+                            <div class="mode-option-text">
+                                <div class="mode-option-title">Local Storage</div>
+                                <div class="mode-option-desc">No account needed.</div>
+                            </div>
+                            <svg class="mode-option-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </button>
 
-                        <button type="button" class="mode-select-card" id="selectCloudMode">
-                            <div class="mode-select-icon">
+                        <button type="button" class="mode-option" id="selectCloudMode">
+                            <div class="mode-option-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
                                 </svg>
                             </div>
-                            <h3 class="mode-select-title">Cloud Sync</h3>
-                            <p class="mode-select-desc">
-                                Sync passwords across all your devices.
-                                End-to-end encrypted with zero-knowledge.
-                            </p>
-                            <ul class="mode-select-features">
-                                <li>Access from any device</li>
-                                <li>End-to-end encrypted</li>
-                                <li>Two-factor authentication</li>
-                                <li>${Config.TRIAL_DAYS > 0 ? `${Config.TRIAL_DAYS}-day free trial` : 'Secure cloud storage'}</li>
-                            </ul>
+                            <div class="mode-option-text">
+                                <div class="mode-option-title">Cloud Sync</div>
+                                <div class="mode-option-desc">Access everywhere.</div>
+                            </div>
+                            <svg class="mode-option-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </button>
                     </div>
 
@@ -246,17 +246,17 @@ const AuthPages = {
                                 <line x1="12" y1="16" x2="12" y2="12"></line>
                                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
                             </svg>
-                            Both options are encrypted entirely on your device.
-                        </p>
-                        <p class="auth-legal-links">
-                            &copy; ${new Date().getFullYear()} <a href="https://keyhive.app" target="_blank" rel="noopener">KeyHive</a> v${Config.VERSION}
-                            <span class="auth-legal-sep">&middot;</span>
-                            <a href="https://keyhive.app/terms" target="_blank" rel="noopener">Terms</a>
-                            <span class="auth-legal-sep">&middot;</span>
-                            <a href="https://keyhive.app/privacy" target="_blank" rel="noopener">Privacy</a>
+                            Both options are encrypted on your device.
                         </p>
                     </div>
                 </div>
+                <p class="auth-legal-fixed">
+                    &copy; ${new Date().getFullYear()} <a href="https://keyhive.app" target="_blank" rel="noopener">KeyHive</a> v${Config.VERSION}
+                    <span class="auth-legal-sep">&middot;</span>
+                    <a href="https://keyhive.app/terms" target="_blank" rel="noopener">Terms</a>
+                    <span class="auth-legal-sep">&middot;</span>
+                    <a href="https://keyhive.app/privacy" target="_blank" rel="noopener">Privacy</a>
+                </p>
             </div>
         `;
     },
@@ -464,12 +464,13 @@ const AuthPages = {
                     <div class="biometric-unlock-section" style="margin-top: var(--space-4); text-align: center;">
                         <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: var(--space-3);">or</p>
                         <button type="button" class="btn btn-secondary btn-block btn-lg" id="biometricUnlockBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="margin-right: 8px;">
-                                <path d="M12 11c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2z"></path>
-                                <path d="M18.36 5.64a9 9 0 0 1 0 12.73"></path>
-                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                <path d="M5.64 18.36a9 9 0 0 1 0-12.73"></path>
-                                <path d="M8.46 15.54a5 5 0 0 1 0-7.07"></path>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="margin-right: 8px;">
+                                <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"></path>
+                                <path d="M5 19.5C5.5 18 6 15 6 12c0-3.3 2.7-6 6-6 1.8 0 3.4.8 4.5 2"></path>
+                                <path d="M10 12c0-1.1.9-2 2-2s2 .9 2 2c0 3-1 6-3 8.5"></path>
+                                <path d="M18 12c0 4-1.5 7.5-4 10"></path>
+                                <path d="M22 12a10 10 0 0 1-2 6"></path>
+                                <path d="M14 12c0 2-1 4.5-2.5 6.5"></path>
                             </svg>
                             <span class="btn-text">Unlock with Biometrics</span>
                         </button>
@@ -763,7 +764,7 @@ const AuthPages = {
                         <label class="custom-checkbox custom-checkbox--on-surface">
                             <input type="checkbox" id="trustDeviceCheck">
                             <span class="checkmark"></span>
-                            <span class="checkbox-text">Trust this device for 7 days</span>
+                            <span class="checkbox-text">Trust this device for 90 days</span>
                         </label>
                     </div>
 
@@ -843,7 +844,7 @@ const AuthPages = {
                         <label class="custom-checkbox custom-checkbox--on-surface">
                             <input type="checkbox" id="trustDeviceCheck">
                             <span class="checkmark"></span>
-                            <span class="checkbox-text">Trust this device for 7 days</span>
+                            <span class="checkbox-text">Trust this device for 90 days</span>
                         </label>
                     </div>
 
@@ -1086,6 +1087,12 @@ const AuthPages = {
 
         // Mode selection buttons
         document.getElementById('selectLocalMode')?.addEventListener('click', async () => {
+            // Switching to local mode — clear biometrics (credentials belong to previous account)
+            if (typeof Biometric !== 'undefined' && Biometric.isAvailable()) {
+                await Biometric.disable();
+                localStorage.removeItem('keyhive_biometric_prompted');
+            }
+
             // Set local mode
             if (typeof LocalDB !== 'undefined') {
                 LocalDB.saveMode('local');
@@ -1195,10 +1202,9 @@ const AuthPages = {
             this.triggerBiometricUnlock();
         });
 
-        // Auto-trigger biometric on unlock page load
-        if (this.currentView === 'unlock' && typeof Biometric !== 'undefined' && Biometric.isEnabled()) {
-            // Small delay to let the UI render first
-            setTimeout(() => this.triggerBiometricUnlock(), 300);
+        // Auto-trigger biometric on cold app start (only on unlock screen, not login/register)
+        if (this.currentView === 'unlock' && typeof Biometric !== 'undefined' && Biometric.consumeAutoUnlock()) {
+            this.triggerBiometricUnlock();
         }
 
         // Vault key info button

@@ -110,6 +110,18 @@ const SearchPage = {
             e.stopPropagation();
             this.showSortMenu(e.currentTarget);
         });
+
+        // Type-to-search: focus input when user starts typing
+        this._keydownHandler = (e) => {
+            const searchInput = document.getElementById('searchPageInput');
+            if (!searchInput || document.activeElement === searchInput) return;
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (e.key.length !== 1 && e.key !== 'Backspace') return;
+            if (document.querySelector('.popup-overlay.active')) return;
+            searchInput.focus();
+        };
+        document.addEventListener('keydown', this._keydownHandler);
     },
 
     async show(query = '') {
@@ -126,6 +138,10 @@ const SearchPage = {
 
     hide() {
         this.stopTotpTimer();
+        if (this._keydownHandler) {
+            document.removeEventListener('keydown', this._keydownHandler);
+            this._keydownHandler = null;
+        }
         window.dispatchEvent(new CustomEvent('searchpage', { detail: { active: false } }));
     },
 
