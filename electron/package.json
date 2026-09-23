@@ -1,6 +1,6 @@
 {
   "name": "keyhive",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Zero-knowledge password manager with client-side encryption",
   "main": "main.js",
   "author": "KeyHive <contact@keyhive.app>",
